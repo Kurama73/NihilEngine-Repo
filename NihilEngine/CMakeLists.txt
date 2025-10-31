@@ -4,7 +4,17 @@ project(NihilEngine)
 # Créer une bibliothèque (STATIC = .lib)
 add_library(NihilEngine STATIC
     src/Window.cpp
+    src/Renderer.cpp
+    src/Camera.cpp
+    src/Input.cpp
+    src/Mesh.cpp
+    src/Entity.cpp
     include/NihilEngine/Window.h
+    include/NihilEngine/Renderer.h
+    include/NihilEngine/Camera.h
+    include/NihilEngine/Input.h
+    include/NihilEngine/Mesh.h
+    include/NihilEngine/Entity.h
 )
 
 # Rendre le dossier "include" public
@@ -20,7 +30,7 @@ find_package(glm CONFIG REQUIRED)
 
 # Lier ces bibliothèques à notre moteur
 target_link_libraries(NihilEngine PUBLIC
-    glfw           # Fenêtre
+    glfw    # Fenêtre
     glad::glad     # OpenGL
-    glm::glm        # Maths
+    glm::glm       # Maths
 )

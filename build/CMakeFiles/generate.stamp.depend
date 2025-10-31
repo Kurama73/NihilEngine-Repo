@@ -2,7 +2,6 @@
 C:/Program Files/CMake/share/cmake-4.2/Modules/CMakeCInformation.cmake
 C:/Program Files/CMake/share/cmake-4.2/Modules/CMakeCXXInformation.cmake
 C:/Program Files/CMake/share/cmake-4.2/Modules/CMakeCommonLanguageInclude.cmake
-C:/Program Files/CMake/share/cmake-4.2/Modules/CMakeDependentOption.cmake
 C:/Program Files/CMake/share/cmake-4.2/Modules/CMakeGenericSystem.cmake
 C:/Program Files/CMake/share/cmake-4.2/Modules/CMakeInitializeConfigs.cmake
 C:/Program Files/CMake/share/cmake-4.2/Modules/CMakeLanguageInformation.cmake
@@ -33,4 +32,3 @@ C:/dev/NihilEngine-Repo/build/CMakeFiles/4.2.0-rc1/CMakeCCompiler.cmake
 C:/dev/NihilEngine-Repo/build/CMakeFiles/4.2.0-rc1/CMakeCXXCompiler.cmake
 C:/dev/NihilEngine-Repo/build/CMakeFiles/4.2.0-rc1/CMakeRCCompiler.cmake
 C:/dev/NihilEngine-Repo/build/CMakeFiles/4.2.0-rc1/CMakeSystem.cmake
-C:/dev/vcpkg/scripts/buildsystems/vcpkg.cmake

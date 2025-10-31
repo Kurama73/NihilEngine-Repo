@@ -4,6 +4,12 @@ project(MonJeu)
 # Créer un exécutable (.exe)
 add_executable(MonJeu
     src/main.cpp
+    src/VoxelWorld.cpp
+)
+
+# Inclure le dossier include de MonJeu
+target_include_directories(MonJeu PRIVATE
+    "${CMAKE_CURRENT_SOURCE_DIR}/include"
 )
 
 # Lier notre jeu à notre moteur

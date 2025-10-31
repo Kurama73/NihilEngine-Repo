@@ -13,6 +13,7 @@ namespace NihilEngine {
 
         bool ShouldClose();
         void OnUpdate();
+        GLFWwindow* GetGLFWWindow() { return m_Window; }
     private:
         GLFWwindow* m_Window; // Pointeur vers la fenêtre GLFW
     };
