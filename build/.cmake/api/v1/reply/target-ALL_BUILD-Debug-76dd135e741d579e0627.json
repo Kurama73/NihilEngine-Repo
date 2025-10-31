@@ -1,0 +1,47 @@
+{
+	"backtrace" : 0,
+	"backtraceGraph" : 
+	{
+		"commands" : [],
+		"files" : 
+		[
+			"NihilEngine/CMakeLists.txt"
+		],
+		"nodes" : 
+		[
+			{
+				"file" : 0
+			}
+		]
+	},
+	"codemodelVersion" : 
+	{
+		"major" : 2,
+		"minor" : 9
+	},
+	"dependencies" : 
+	[
+		{
+			"id" : "NihilEngine::@8002b76b543d8a8f8bfd"
+		},
+		{
+			"id" : "ZERO_CHECK::@6890427a1f51a3e7e1df"
+		}
+	],
+	"id" : "ALL_BUILD::@8002b76b543d8a8f8bfd",
+	"isGeneratorProvided" : true,
+	"name" : "ALL_BUILD",
+	"orderDependencies" : 
+	[
+		{
+			"id" : "NihilEngine::@8002b76b543d8a8f8bfd"
+		}
+	],
+	"paths" : 
+	{
+		"build" : "NihilEngine",
+		"source" : "NihilEngine"
+	},
+	"sources" : [],
+	"type" : "UTILITY"
+}

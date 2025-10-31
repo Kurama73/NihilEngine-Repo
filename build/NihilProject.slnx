@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<Solution>
+	<Configurations>
+		<BuildType Name="Debug"/>
+		<BuildType Name="Release"/>
+		<BuildType Name="MinSizeRel"/>
+		<BuildType Name="RelWithDebInfo"/>
+		<Platform Name="x64"/>
+	</Configurations>
+	<Project Path="ALL_BUILD.vcxproj" Id="a4778575-a526-3467-a963-6426e049dfd8">
+		<BuildDependency Project="MonJeu/MonJeu.vcxproj"/>
+		<BuildDependency Project="NihilEngine/NihilEngine.vcxproj"/>
+		<BuildDependency Project="ZERO_CHECK.vcxproj"/>
+		<Build Solution="Debug|*" Project="false"/>
+		<Build Solution="Release|*" Project="false"/>
+		<Build Solution="MinSizeRel|*" Project="false"/>
+		<Build Solution="RelWithDebInfo|*" Project="false"/>
+	</Project>
+	<Project Path="MonJeu/MonJeu.vcxproj" Id="b644e7b2-28ae-3b36-972e-525622b0c589">
+		<BuildDependency Project="NihilEngine/NihilEngine.vcxproj"/>
+		<BuildDependency Project="ZERO_CHECK.vcxproj"/>
+	</Project>
+	<Project Path="NihilEngine/NihilEngine.vcxproj" Id="363e1216-b86b-33d7-b2eb-6431253d1aef">
+		<BuildDependency Project="ZERO_CHECK.vcxproj"/>
+	</Project>
+	<Project Path="ZERO_CHECK.vcxproj" Id="cf1f7112-5efc-3ee3-a833-ee15a760aa87"/>
+</Solution>

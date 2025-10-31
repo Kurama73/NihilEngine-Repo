@@ -1,0 +1,10 @@
+^C:\DEV\NIHILENGINE-REPO\BUILD\CMAKEFILES\EC5CCD1F764BA4CC971272163E7750AC\GENERATE.STAMP.RULE
+setlocal
+"C:\Program Files\CMake\bin\cmake.exe" -SC:/dev/NihilEngine-Repo -BC:/dev/NihilEngine-Repo/build --check-stamp-list CMakeFiles/generate.stamp.list --vs-solution-file C:/dev/NihilEngine-Repo/build/NihilProject.slnx
+if %errorlevel% neq 0 goto :cmEnd
+:cmEnd
+endlocal & call :cmErrorLevel %errorlevel% & goto :cmDone
+:cmErrorLevel
+exit /b %1
+:cmDone
+if %errorlevel% neq 0 goto :VCEnd
