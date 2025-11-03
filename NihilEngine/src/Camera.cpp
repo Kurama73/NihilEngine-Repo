@@ -46,6 +46,11 @@ namespace NihilEngine {
         return glm::normalize(front);
     }
 
+    void Camera::SetAspect(float aspect) {
+        m_Aspect = aspect;
+        UpdateProjectionMatrix();
+    }
+
     void Camera::UpdateProjectionMatrix() {
         m_ProjectionMatrix = glm::perspective(glm::radians(m_FOV), m_Aspect, m_Near, m_Far);
     }

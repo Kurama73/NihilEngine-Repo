@@ -22,6 +22,11 @@ int main()
         NihilEngine::Camera camera(45.0f, 1280.0f / 720.0f, 0.1f, 100.0f);
         NihilEngine::Input::Init(window.GetGLFWWindow());
 
+        // --- CORRECTION 1: Lier la caméra à la fenêtre ---
+        // Cela permet à la fenêtre de notifier la caméra si elle est redimensionnée,
+        // ce qui corrige le décalage de la visée.
+        window.SetCamera(&camera);
+
         MonJeu::VoxelWorld voxelWorld;
 
         for (int chunkX = -3; chunkX <= 3; ++chunkX) {
@@ -34,10 +39,11 @@ int main()
 
         float lastTime = glfwGetTime();
 
-        // --- NOUVEAU: Variable pour le laser ---
-        glm::vec3 laserEndPoint = camera.GetPosition(); // Initialiser
+        // Variables pour gérer le clic unique
+        bool leftMouseWasPressed = false;
+        bool rightMouseWasPressed = false;
 
-        // 2. Boucle principale
+        // Boucle principale
         while (!window.ShouldClose())
         {
             float currentTime = glfwGetTime();
@@ -47,7 +53,6 @@ int main()
             // --- INPUT CAMÉRA ---
             double mouseDx, mouseDy;
             NihilEngine::Input::GetMouseDelta(mouseDx, mouseDy);
-            // La rotation de la caméra va maintenant fonctionner
             camera.SetRotation(camera.GetYaw() + mouseDx * 0.1f, camera.GetPitch() + mouseDy * 0.1f);
 
             glm::vec3 position = camera.GetPosition();
@@ -64,46 +69,53 @@ int main()
             if (NihilEngine::Input::IsKeyPressed(GLFW_KEY_LEFT_SHIFT)) position.y -= speed;
             camera.SetPosition(position);
 
+            // --- Raycast unique (pour le laser ET les clics) ---
+            glm::vec3 laserEndPoint;
 
-            // --- NOUVEAU: Raycast continu pour le laser ---
-            // On le fait à chaque image, que l'on clique ou non
-            {
-                NihilEngine::RaycastHit laserHit;
-                glm::vec3 origin = camera.GetPosition();
-                glm::vec3 direction = camera.GetForward(); // Le vecteur est maintenant correct
+            // --- CORRECTION 2: Offset du laser (Problème du 'near plane') ---
+            // On passe de 0.1f à 0.2f pour être SÛR d'être DEVANT le near plane (0.1f)
+            float laserOffset = 0.2f;
+            glm::vec3 origin = camera.GetPosition() + camera.GetForward() * laserOffset;
 
-                if (voxelWorld.Raycast(origin, direction, 50.0f, laserHit)) {
-                    // Si on touche, le laser s'arrête au centre du bloc
-                    laserEndPoint = glm::vec3(laserHit.blockPosition) + 0.5f;
-                } else {
-                    // Si on ne touche rien, le laser part au loin
-                    laserEndPoint = origin + direction * 50.0f;
+            glm::vec3 direction = camera.GetForward();
+            float maxDistance = 10.0f;
+
+            NihilEngine::RaycastHit hitResult;
+            bool didHit = voxelWorld.Raycast(origin, direction, maxDistance, hitResult);
+
+            if (didHit) {
+                // Le laser s'arrête au point d'impact
+                laserEndPoint = hitResult.hitPoint;
+            } else {
+                // Le laser part à la distance maximale
+                laserEndPoint = origin + direction * maxDistance;
+            }
+
+            // --- Gestion du clic unique ---
+            bool leftMouseIsPressed = NihilEngine::Input::IsMouseButtonPressed(GLFW_MOUSE_BUTTON_LEFT);
+            bool rightMouseIsPressed = NihilEngine::Input::IsMouseButtonPressed(GLFW_MOUSE_BUTTON_RIGHT);
+
+            bool leftMouseClicked = leftMouseIsPressed && !leftMouseWasPressed;
+            bool rightMouseClicked = rightMouseIsPressed && !rightMouseWasPressed;
+
+            // --- GESTION CLICS SOURIS (utilisant le raycast unique) ---
+            if (leftMouseClicked) {
+                if (didHit) { // On utilise le résultat du raycast déjà fait
+                    voxelWorld.SetVoxelActive(hitResult.blockPosition.x, hitResult.blockPosition.y, hitResult.blockPosition.z, false);
                 }
             }
 
-
-            // --- GESTION CLICS SOURIS ---
-            // (Ce code est maintenant correct grâce à la réparation de Input.cpp)
-            if (NihilEngine::Input::IsMouseButtonPressed(GLFW_MOUSE_BUTTON_LEFT)) {
-                NihilEngine::RaycastHit result;
-                glm::vec3 origin = camera.GetPosition();
-                glm::vec3 direction = camera.GetForward();
-
-                if (voxelWorld.Raycast(origin, direction, 10.0f, result)) {
-                    voxelWorld.SetVoxelActive(result.blockPosition.x, result.blockPosition.y, result.blockPosition.z, false);
-                }
-            }
-
-            if (NihilEngine::Input::IsMouseButtonPressed(GLFW_MOUSE_BUTTON_RIGHT)) {
-                NihilEngine::RaycastHit result;
-                glm::vec3 origin = camera.GetPosition();
-                glm::vec3 direction = camera.GetForward();
-
-                if (voxelWorld.Raycast(origin, direction, 10.0f, result)) {
-                    glm::ivec3 placePos = result.blockPosition + glm::ivec3(result.hitNormal);
+            if (rightMouseClicked) {
+                if (didHit) { // On utilise le résultat du raycast déjà fait
+                    glm::ivec3 placePos = hitResult.blockPosition + glm::ivec3(hitResult.hitNormal);
                     voxelWorld.SetVoxelActive(placePos.x, placePos.y, placePos.z, true);
                 }
             }
+
+            // Mettre à jour l'état des boutons pour la prochaine image
+            leftMouseWasPressed = NihilEngine::Input::IsMouseButtonHeld(GLFW_MOUSE_BUTTON_LEFT);
+            rightMouseWasPressed = NihilEngine::Input::IsMouseButtonHeld(GLFW_MOUSE_BUTTON_RIGHT);
+
 
             // --- MISE À JOUR ---
             voxelWorld.UpdateDirtyChunks();
@@ -112,12 +124,14 @@ int main()
             renderer.Clear();
             voxelWorld.Render(renderer, camera);
 
-            // --- NOUVEAU: Dessiner le laser ---
-            // On dessine une ligne rouge du "nez" de la caméra jusqu'au point d'impact
-            glm::vec3 laserStart = camera.GetPosition() + camera.GetForward() * 0.1f; // Partir juste devant
-            renderer.DrawLine3D(laserStart, laserEndPoint, camera, glm::vec3(1.0f, 0.0f, 0.0f));
+            // --- Dessiner le laser ---
+            // On utilise aussi l'offset de 0.2f ici
+            glm::vec3 laserStart = camera.GetPosition() + camera.GetForward() * laserOffset;
+            renderer.DrawLine3D(laserStart, laserEndPoint, camera, glm::vec3(1.0f, 0.0f, 0.0f)); // Rouge
 
-            renderer.DrawCrosshair(1280, 720);
+            // --- Dessiner le viseur ---
+            // Il utilise la taille actuelle de la fenêtre pour rester centré
+            renderer.DrawCrosshair(window.GetWidth(), window.GetHeight());
 
             // --- SYNCHRONISATION ---
             NihilEngine::Input::Update();

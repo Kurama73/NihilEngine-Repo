@@ -9,6 +9,7 @@
 	</Configurations>
 	<Project Path="ALL_BUILD.vcxproj" Id="a4778575-a526-3467-a963-6426e049dfd8">
 		<BuildDependency Project="MonJeu/MonJeu.vcxproj"/>
+		<BuildDependency Project="MonJeu/MonJeuLib.vcxproj"/>
 		<BuildDependency Project="NihilEngine/NihilEngine.vcxproj"/>
 		<BuildDependency Project="ZERO_CHECK.vcxproj"/>
 		<Build Solution="Debug|*" Project="false"/>
@@ -17,6 +18,11 @@
 		<Build Solution="RelWithDebInfo|*" Project="false"/>
 	</Project>
 	<Project Path="MonJeu/MonJeu.vcxproj" Id="b644e7b2-28ae-3b36-972e-525622b0c589">
+		<BuildDependency Project="MonJeu/MonJeuLib.vcxproj"/>
+		<BuildDependency Project="NihilEngine/NihilEngine.vcxproj"/>
+		<BuildDependency Project="ZERO_CHECK.vcxproj"/>
+	</Project>
+	<Project Path="MonJeu/MonJeuLib.vcxproj" Id="e79e1957-5f4a-3171-973e-ac4cf449347c">
 		<BuildDependency Project="NihilEngine/NihilEngine.vcxproj"/>
 		<BuildDependency Project="ZERO_CHECK.vcxproj"/>
 	</Project>

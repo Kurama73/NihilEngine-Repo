@@ -1,26 +1,17 @@
-﻿# Nom du projet Moteur
-project(NihilEngine)
-
-# Créer une bibliothèque (STATIC = .lib)
-add_library(NihilEngine STATIC
-    src/Window.cpp
-    src/Renderer.cpp
+﻿# Bibliothèque NihilEngine
+add_library(NihilEngine
     src/Camera.cpp
+    src/Entity.cpp
     src/Input.cpp
     src/Mesh.cpp
-    src/Entity.cpp
-    include/NihilEngine/Window.h
-    include/NihilEngine/Renderer.h
-    include/NihilEngine/Camera.h
-    include/NihilEngine/Input.h
-    include/NihilEngine/Mesh.h
-    include/NihilEngine/Entity.h
+    src/Renderer.cpp
+    src/Window.cpp
 )
 
-# Rendre le dossier "include" public
-# (PUBLIC = tous ceux qui linkent NihilEngine reçoivent ce chemin d'include)
+# Cible les en-têtes pour que d'autres projets puissent les trouver
 target_include_directories(NihilEngine PUBLIC
-    "${CMAKE_CURRENT_SOURCE_DIR}/include"
+    $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
+    $<INSTALL_INTERFACE:include>
 )
 
 # Trouver les paquets vcpkg (GLFW, GLAD, GLM)

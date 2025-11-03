@@ -65,7 +65,6 @@ namespace MonJeu {
         void AddVisibleFacesToMesh(std::vector<float>& vertices, std::vector<unsigned int>& indices, int x, int y, int z, BlockType type, const bool visible[6]) const;
     };
 
-
     // Monde voxel gérant plusieurs chunks
     class VoxelWorld {
     public:

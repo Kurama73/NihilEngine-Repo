@@ -21,6 +21,8 @@ namespace NihilEngine {
         float GetPitch() const { return m_Pitch; }
         glm::vec3 GetForward() const;
 
+        void SetAspect(float aspect);
+
     private:
         glm::vec3 m_Position;
         float m_Yaw;   // Rotation horizontale
