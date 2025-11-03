@@ -46,4 +46,8 @@ namespace NihilEngine {
         return m_Color;
     }
 
+    void Entity::SetMesh(Mesh&& newMesh) {
+        m_Mesh = std::move(newMesh);
+    }
+
 } // namespace NihilEngine

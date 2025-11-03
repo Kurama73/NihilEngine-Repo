@@ -15,13 +15,23 @@ namespace NihilEngine {
         ~Renderer();
 
         void Clear();
-        void DrawMesh(const Mesh& mesh, const Camera& camera, const glm::mat4& model = glm::mat4(1.0f), const glm::vec3& colorMultiplier = glm::vec3(1.0f));
-        void SwapBuffers(); // Peut-être pas nécessaire si Window gère
+        void DrawMesh(const Mesh& mesh, const Camera& camera, const glm::mat4& model);
+        void DrawCrosshair(int windowWidth, int windowHeight);
+
+        // --- NOUVEAU: Dessine une ligne 3D (pour le laser) ---
+        void DrawLine3D(const glm::vec3& start, const glm::vec3& end, const Camera& camera, const glm::vec3& color = glm::vec3(1.0f, 0.0f, 0.0f));
 
     private:
         GLuint m_ShaderProgram;
-        GLuint m_ColorMultiplierLoc;
-
         void InitShaders();
+
+        GLuint m_CrosshairShaderProgram;
+        GLuint m_CrosshairVAO, m_CrosshairVBO;
+        void InitCrosshair();
+
+        // --- NOUVEAU: Pour les lignes 3D ---
+        GLuint m_LineShaderProgram;
+        GLuint m_LineVAO, m_LineVBO;
+        void InitLineShader();
     };
 }

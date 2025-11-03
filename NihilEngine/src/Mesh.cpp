@@ -39,9 +39,19 @@ namespace NihilEngine {
         return *this;
     }
 
-    // === CONSTRUCTEUR STANDARD ===
+    // === CONSTRUCTEUR STANDARD (MODIFIÉ) ===
     Mesh::Mesh(const std::vector<float>& vertices, const std::vector<unsigned int>& indices)
         : m_IndexCount(static_cast<int>(indices.size())) {
+
+        // Si on nous donne un mesh vide (ex: chunk sans blocs), ne rien faire
+        if (vertices.empty() || indices.empty()) {
+            m_VAO = 0;
+            m_VBO = 0;
+            m_EBO = 0;
+            m_IndexCount = 0;
+            return;
+        }
+
         glGenVertexArrays(1, &m_VAO);
         glGenBuffers(1, &m_VBO);
         glGenBuffers(1, &m_EBO);
@@ -54,13 +64,21 @@ namespace NihilEngine {
         glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, m_EBO);
         glBufferData(GL_ELEMENT_ARRAY_BUFFER, indices.size() * sizeof(unsigned int), indices.data(), GL_STATIC_DRAW);
 
+        // --- NOUVELLE STRUCTURE DU VERTEX ---
+        // 3 (Pos) + 3 (Normal) + 2 (UV) = 8 floats
+        int stride = 8 * sizeof(float);
+
         // Attribut position (location 0)
-        glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 6 * sizeof(float), (void*)0);
+        glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, stride, (void*)0);
         glEnableVertexAttribArray(0);
 
-        // Attribut color (location 1)
-        glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 6 * sizeof(float), (void*)(3 * sizeof(float)));
+        // Attribut normale (location 1)
+        glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, stride, (void*)(3 * sizeof(float)));
         glEnableVertexAttribArray(1);
+
+        // Attribut UV (location 2)
+        glVertexAttribPointer(2, 2, GL_FLOAT, GL_FALSE, stride, (void*)(6 * sizeof(float)));
+        glEnableVertexAttribArray(2);
 
         glBindVertexArray(0);
 
@@ -92,66 +110,6 @@ namespace NihilEngine {
         glDrawElements(GL_TRIANGLES, m_IndexCount, GL_UNSIGNED_INT, 0);
     }
 
-    // === CREATE CUBE ===
-    Mesh Mesh::CreateCube(float size) {
-        float half = size / 2.0f;
-        std::vector<float> vertices = {
-            // Front (red)
-            -half, -half,  half,  1.0f, 0.0f, 0.0f,
-             half, -half,  half,  1.0f, 0.0f, 0.0f,
-             half,  half,  half,  1.0f, 0.0f, 0.0f,
-            -half,  half,  half,  1.0f, 0.0f, 0.0f,
-            // Back (green)
-            -half, -half, -half,  0.0f, 1.0f, 0.0f,
-            -half,  half, -half,  0.0f, 1.0f, 0.0f,
-             half,  half, -half,  0.0f, 1.0f, 0.0f,
-             half, -half, -half,  0.0f, 1.0f, 0.0f,
-            // Left (blue)
-            -half,  half,  half,  0.0f, 0.0f, 1.0f,
-            -half,  half, -half,  0.0f, 0.0f, 1.0f,
-            -half, -half, -half,  0.0f, 0.0f, 1.0f,
-            -half, -half,  half,  0.0f, 0.0f, 1.0f,
-            // Right (yellow)
-             half,  half,  half,  1.0f, 1.0f, 0.0f,
-             half, -half,  half,  1.0f, 1.0f, 0.0f,
-             half, -half, -half,  1.0f, 1.0f, 0.0f,
-             half,  half, -half,  1.0f, 1.0f, 0.0f,
-            // Top (magenta)
-            -half,  half, -half,  1.0f, 0.0f, 1.0f,
-            -half,  half,  half,  1.0f, 0.0f, 1.0f,
-             half,  half,  half,  1.0f, 0.0f, 1.0f,
-             half,  half, -half,  1.0f, 0.0f, 1.0f,
-            // Bottom (cyan)
-            -half, -half, -half,  0.0f, 1.0f, 1.0f,
-             half, -half, -half,  0.0f, 1.0f, 1.0f,
-             half, -half,  half,  0.0f, 1.0f, 1.0f,
-            -half, -half,  half,  0.0f, 1.0f, 1.0f
-        };
-
-        std::vector<unsigned int> indices = {
-            0, 1, 2, 2, 3, 0,       // Front
-            4, 5, 6, 6, 7, 4,       // Back
-            8, 9, 10, 10, 11, 8,    // Left
-            12, 13, 14, 14, 15, 12, // Right
-            16, 17, 18, 18, 19, 16, // Top
-            20, 21, 22, 22, 23, 20  // Bottom
-        };
-
-        return Mesh(vertices, indices);
-    }
-
-    // === CREATE TRIANGLE ===
-    Mesh Mesh::CreateTriangle(float size) {
-        float half = size / 2.0f;
-        std::vector<float> vertices = {
-            -half, -half, 0.0f,  1.0f, 0.0f, 0.0f,  // Red
-             half, -half, 0.0f,  1.0f, 0.0f, 0.0f,  // Red
-             0.0f,  half, 0.0f,  1.0f, 0.0f, 0.0f   // Red
-        };
-
-        std::vector<unsigned int> indices = { 0, 1, 2 };
-
-        return Mesh(vertices, indices);
-    }
-
+    // Les fonctions CreateCube et CreateTriangle ont été supprimées
+    // car elles généraient l'ancien format de vertex (6-float).
 }

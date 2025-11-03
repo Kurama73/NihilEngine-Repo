@@ -2,9 +2,18 @@
 
 #include <vector>
 #include <unordered_map>
+#include <string> // Pour std::hash
 #include <glm/glm.hpp>
 #include <NihilEngine/Entity.h>
 #include <NihilEngine/Mesh.h>
+#include <NihilEngine/Physics.h> // <- Inclure pour RaycastHit
+#include <memory>
+
+// Fwd declarations
+namespace NihilEngine {
+    class Renderer;
+    class Camera;
+}
 
 namespace MonJeu {
 
@@ -56,36 +65,36 @@ namespace MonJeu {
         void AddVisibleFacesToMesh(std::vector<float>& vertices, std::vector<unsigned int>& indices, int x, int y, int z, BlockType type, const bool visible[6]) const;
     };
 
+
     // Monde voxel gérant plusieurs chunks
     class VoxelWorld {
     public:
         VoxelWorld();
         ~VoxelWorld() = default;
 
-        // Générer un chunk
         void GenerateChunk(int chunkX, int chunkZ);
+        void UpdateDirtyChunks();
+        void Render(NihilEngine::Renderer& renderer, const NihilEngine::Camera& camera);
 
-        // Obtenir tous les chunks actifs (pour rendu)
         const std::unordered_map<uint64_t, Chunk>& GetChunks() const;
 
-        // Convertir coordonnées monde en chunk
         static void WorldToChunk(int worldX, int worldZ, int& chunkX, int& chunkZ);
 
-        // Résultat du raycast
-        struct RaycastResult {
-            bool hit = false;
-            int chunkX, chunkZ, x, y, z;
-            glm::vec3 normal;
-        };
+        // --- NOUVEAU RAYCAST ---
+        // Utilise la structure RaycastHit du moteur
+        bool Raycast(const glm::vec3& origin, const glm::vec3& direction, float maxDistance, NihilEngine::RaycastHit& result);
 
-        // Raycast pour trouver le bloc visé
-        bool Raycast(const glm::vec3& origin, const glm::vec3& direction, float maxDistance, RaycastResult& result);
+        void SetVoxelActive(int worldX, int worldY, int worldZ, bool active);
+        bool GetVoxelActive(int worldX, int worldY, int worldZ) const;
 
-        // Modifier un voxel
-        void SetVoxelActive(int worldX, int worldY, int worldZ, bool active);    private:
+    private:
         std::unordered_map<uint64_t, Chunk> m_Chunks; // Key: (chunkX << 32) | chunkZ
-
         uint64_t GetChunkKey(int chunkX, int chunkZ) const;
+
+        // --- MEMBRES AJOUTÉS ---
+        // (Ils étaient dans ton .cpp mais manquaient ici)
+        std::unordered_map<uint64_t, std::unique_ptr<NihilEngine::Entity>> m_ChunkEntities;
+        std::vector<uint64_t> m_DirtyChunks;
     };
 
 }

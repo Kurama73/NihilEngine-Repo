@@ -28,6 +28,7 @@ namespace NihilEngine {
         void SetRotation(const glm::vec3& rotation); // En degrés
         void SetScale(const glm::vec3& scale);
         void SetColor(const glm::vec4& color);
+        void SetMesh(Mesh&& newMesh);
 
         glm::mat4 GetModelMatrix() const;
         const Mesh& GetMesh() const;
@@ -41,4 +42,4 @@ namespace NihilEngine {
         glm::vec4 m_Color;
     };
 
-} 
+}
