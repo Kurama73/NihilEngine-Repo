@@ -16,12 +16,15 @@ namespace MonJeu {
           m_Height(1.8f),
           m_ID(0),
           m_ShowRaycast(true),
-          m_IsFlying(false)
+          m_IsFlying(false),
+          m_ShowFOV(true),
+          m_Yaw(-90.0f),
+          m_Pitch(0.0f)
     {}
 
     Player::~Player() = default;
 
-    void Player::Update(float deltaTime, NihilEngine::Camera& camera, VoxelWorld& world) {
+    void Player::Update(float deltaTime, NihilEngine::Camera& camera, VoxelWorld& world, bool isCurrent) {
         const float speed = 5.0f;
         const float gravity = 40.0f;
         const float jumpForce = 10.0f;
@@ -29,17 +32,24 @@ namespace MonJeu {
         const float mouseSensitivity = 0.1f;
 
         // === 1. ROTATION CAMÉRA (souris) ===
-        static float yaw = -90.0f;   // regarde +Z au début
-        static float pitch = 0.0f;
+        // Synchronise avec la caméra si c'est le joueur actuel (pour les switches)
+        if (isCurrent) {
+            m_Yaw = camera.GetYaw();
+            m_Pitch = camera.GetPitch();
+        }
 
         double mouseDeltaX, mouseDeltaY;
         NihilEngine::Input::GetMouseDelta(mouseDeltaX, mouseDeltaY);
 
-        yaw += static_cast<float>(mouseDeltaX) * mouseSensitivity;
-        pitch += static_cast<float>(mouseDeltaY) * mouseSensitivity;
-        pitch = glm::clamp(pitch, -89.0f, 89.0f);
+        m_Yaw += static_cast<float>(mouseDeltaX) * mouseSensitivity;
+        m_Pitch += static_cast<float>(mouseDeltaY) * mouseSensitivity;
+        m_Pitch = glm::clamp(m_Pitch, -89.0f, 89.0f);
 
-        camera.SetRotation(yaw, pitch);  // Utilise ta méthode existante !
+        camera.SetRotation(m_Yaw, m_Pitch);
+
+        if (isCurrent) {
+            m_Facing = camera.GetForward();
+        }
 
         // === 2. POSITION JOUEUR + CAMÉRA ===
         glm::vec3 forward = camera.GetForward();
@@ -120,19 +130,32 @@ namespace MonJeu {
 
         // === 5. MISE À JOUR CAMÉRA ===
         glm::vec3 eye = m_Position + glm::vec3(0.0f, 0.9f, 0.0f);
-        camera.SetPosition(eye);
+        if (isCurrent) {
+            camera.SetPosition(eye);
+        }
         // SetRotation déjà fait → pas besoin de SetTarget
     }
 
     // === Rendu du joueur (cube plein) ===
     void Player::Render(NihilEngine::Renderer& renderer, const NihilEngine::Camera& camera) {
-        // On va simuler un cube plein avec DrawWireCube + remplissage ?
-        // Non : ton Renderer n'a pas de cube plein → on peut ajouter une fonction ou utiliser Entity
+        // Modèle placeholder : cube filaire bleu
+        glm::vec3 min = m_Position + glm::vec3(-0.5f, 0.0f, -0.5f);
+        glm::vec3 max = m_Position + glm::vec3( 0.5f, 1.8f,  0.5f);
+        renderer.DrawWireCube(min, max, camera, glm::vec3(0.0f, 0.0f, 1.0f));
 
-        // Solution temporaire : **cube wireframe vert**
-        glm::vec3 min = m_Position + glm::vec3(-0.4f, 0.0f, -0.4f);
-        glm::vec3 max = m_Position + glm::vec3( 0.4f, 1.8f,  0.4f);
-        renderer.DrawWireCube(min, max, camera, glm::vec3(0.0f, 1.0f, 0.0f));
+        // Champ de vision : lignes pour le cône
+        if (m_ShowFOV) {
+            glm::vec3 eye = m_Position + glm::vec3(0.0f, 0.9f, 0.0f);
+            glm::vec3 forward = m_Facing;
+            float fovRad = glm::radians(60.0f);
+            glm::mat4 rotLeft = glm::rotate(glm::mat4(1.0f), fovRad / 2.0f, glm::vec3(0.0f, 1.0f, 0.0f));
+            glm::mat4 rotRight = glm::rotate(glm::mat4(1.0f), -fovRad / 2.0f, glm::vec3(0.0f, 1.0f, 0.0f));
+            glm::vec3 leftDir = glm::vec3(rotLeft * glm::vec4(forward, 0.0f));
+            glm::vec3 rightDir = glm::vec3(rotRight * glm::vec4(forward, 0.0f));
+            renderer.DrawLine3D(eye, eye + forward * 5.0f, camera, glm::vec3(1.0f, 1.0f, 0.0f), 2.0f);
+            renderer.DrawLine3D(eye, eye + leftDir * 5.0f, camera, glm::vec3(1.0f, 1.0f, 0.0f), 2.0f);
+            renderer.DrawLine3D(eye, eye + rightDir * 5.0f, camera, glm::vec3(1.0f, 1.0f, 0.0f), 2.0f);
+        }
     }
 
     // === Raycast visuel ===

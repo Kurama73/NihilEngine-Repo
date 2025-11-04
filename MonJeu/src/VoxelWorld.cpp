@@ -289,6 +289,9 @@ void VoxelWorld::SetVoxelActive(int worldX, int worldY, int worldZ, bool active)
         int localY = worldY;
         if (localX >= 0 && localX < Chunk::SIZE && localY >= 0 && localY < Chunk::SIZE && localZ >= 0 && localZ < Chunk::SIZE) {
             m_Chunks[key]->GetVoxel(localX, localY, localZ).active = active;
+            if (active) {
+                m_Chunks[key]->GetVoxel(localX, localY, localZ).type = BlockType::Grass;
+            }
             m_DirtyChunks.push_back(key);
             if (localX == 0) m_DirtyChunks.push_back(GetChunkKey(chunkX - 1, chunkZ));
             if (localX == Chunk::SIZE - 1) m_DirtyChunks.push_back(GetChunkKey(chunkX + 1, chunkZ));

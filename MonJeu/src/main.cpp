@@ -1,4 +1,5 @@
 ﻿// main.cpp
+#include <iostream>
 #include <NihilEngine/Window.h>
 #include <NihilEngine/Renderer.h>
 #include <NihilEngine/Camera.h>
@@ -8,8 +9,7 @@
 #include <MonJeu/GameDebugOverlay.h>
 #include <glad/glad.h>
 #include <GLFW/glfw3.h>
-#include <iostream>
-#include <glm/gtc/matrix_transform.hpp>
+#include <vector>
 
 int main() {
     try {
@@ -22,7 +22,11 @@ int main() {
 
         MonJeu::VoxelWorld voxelWorld;
         MonJeu::Player player;
+        MonJeu::Player otherPlayer; // Autre joueur
         MonJeu::GameDebugOverlay debugOverlay(1280, 720);
+
+        std::vector<MonJeu::Player*> controllablePlayers = {&player, &otherPlayer};
+        int currentPlayerIndex = 0;
 
         // === CHARGER LA POLICE (OBLIGATOIRE) ===
         bool fontLoaded = false;
@@ -63,6 +67,13 @@ int main() {
         } else {
             player.SetPosition(glm::vec3(0.0f, 10.0f, 0.0f));
         }
+        // Spawn autre joueur décalé
+        otherPlayer.SetPosition(player.GetPosition() + glm::vec3(2.0f, 0.0f, 2.0f));
+        otherPlayer.SetShowFOV(true);
+        otherPlayer.SetFacing(glm::vec3(1.0f, 0.0f, 0.0f));
+        // Calcule yaw/pitch pour la direction +X (1,0,0)
+        otherPlayer.SetYaw(0.0f);  // atan2(0, 1) = 0
+        otherPlayer.SetPitch(0.0f);
         camera.SetPosition(player.GetPosition() + glm::vec3(0.0f, 0.9f, 3.0f));
 
         // === BOUCLE PRINCIPALE ===
@@ -95,9 +106,18 @@ int main() {
             if (NihilEngine::Input::IsKeyTriggered(GLFW_KEY_F6)) debugOverlay.TogglePositions();
             if (NihilEngine::Input::IsKeyTriggered(GLFW_KEY_F7)) debugOverlay.ToggleChunkInfo();
             if (NihilEngine::Input::IsKeyTriggered(GLFW_KEY_F4)) player.ToggleRaycastVis();
+            if (NihilEngine::Input::IsKeyTriggered(GLFW_KEY_TAB)) {
+                currentPlayerIndex = (currentPlayerIndex + 1) % controllablePlayers.size();
+                auto* current = controllablePlayers[currentPlayerIndex];
+                camera.SetPosition(current->GetPosition() + glm::vec3(0.0f, 0.9f, 3.0f));
+                camera.SetForward(current->GetFacing());
+                // Synchronise les yaw/pitch du joueur avec la caméra
+                current->SetYaw(camera.GetYaw());
+                current->SetPitch(camera.GetPitch());
+            }
 
             // === MISE À JOUR ===
-            player.Update(deltaTime, camera, voxelWorld);
+            controllablePlayers[currentPlayerIndex]->Update(deltaTime, camera, voxelWorld, true);
             voxelWorld.UpdateDirtyChunks();
 
             // === RAYCAST INTERACTION ===
@@ -120,7 +140,12 @@ int main() {
 
             // 3D World
             voxelWorld.Render(renderer, camera);
-            player.Render(renderer, camera);
+            // player.Render(renderer, camera); // Désactivé pour vue à la première personne
+            for (auto* p : controllablePlayers) {
+                if (p != controllablePlayers[currentPlayerIndex]) { // Render others
+                    p->Render(renderer, camera);
+                }
+            }
             if (player.IsRaycastVisible()) {
                 player.RenderRaycast(renderer, camera, voxelWorld);
             }
