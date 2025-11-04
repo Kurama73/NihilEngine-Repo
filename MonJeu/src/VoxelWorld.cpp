@@ -1,4 +1,5 @@
 #include <MonJeu/VoxelWorld.h>
+#include <MonJeu/Constants.h>
 #include <algorithm>
 #include <cmath>
 #include <NihilEngine/Physics.h>
@@ -16,7 +17,7 @@ void Chunk::GenerateTerrain() {
             int worldX = m_ChunkX * SIZE + x;
             int worldZ = m_ChunkZ * SIZE + z;
             float distance = std::sqrt(static_cast<float>(worldX * worldX + worldZ * worldZ));
-            int height = 8 + static_cast<int>(4 * std::sin(distance * 0.1f));
+            int height = Constants::BASE_HEIGHT + static_cast<int>(Constants::TERRAIN_AMPLITUDE * std::sin(distance * Constants::TERRAIN_FREQUENCY));
             for (int y = 0; y < SIZE; ++y) {
                 Voxel& voxel = GetVoxel(x, y, z);
                 if (y < height - 3) {

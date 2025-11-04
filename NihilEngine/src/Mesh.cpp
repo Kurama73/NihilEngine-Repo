@@ -172,4 +172,4 @@ Mesh Mesh::CreateQuad(float size) {
     return Mesh(vertices, indices, attrs);
 }
 
-} // namespace NihilEngine
+}

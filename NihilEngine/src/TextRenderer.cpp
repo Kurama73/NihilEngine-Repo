@@ -1,5 +1,6 @@
 // NihilEngine/src/TextRenderer.cpp
 #include <NihilEngine/TextRenderer.h>
+#include <NihilEngine/Constants.h>
 #include <glad/glad.h>
 #include <iostream>
 #include <glm/gtc/matrix_transform.hpp>
@@ -110,9 +111,9 @@ bool TextRenderer::LoadFont(const std::string& fontPath, unsigned int fontSize) 
     FT_Set_Pixel_Sizes(m_Face, 0, fontSize);
     glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
 
-    m_Characters.clear();  // Nettoyer au cas où
+    m_Characters.clear();
 
-    for (unsigned char c = 0; c < 128; ++c) {
+    for (unsigned char c = Constants::ASCII_START; c < Constants::ASCII_END; ++c) {
         if (FT_Load_Char(m_Face, c, FT_LOAD_RENDER)) {
             std::cerr << "ERROR::FREETYPE: Failed to load Glyph '" << c << "'" << std::endl;
             continue;
@@ -200,8 +201,7 @@ void TextRenderer::RenderText(const std::string& text, float x, float y, float s
     glBindVertexArray(0);
     glBindTexture(GL_TEXTURE_2D, 0);
 
-    // Disable blending after text rendering
     glDisable(GL_BLEND);
 }
 
-} // namespace NihilEngine
+}

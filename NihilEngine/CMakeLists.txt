@@ -3,6 +3,7 @@ add_library(NihilEngine
     src/Camera.cpp
     src/DebugOverlay.cpp
     src/Entity.cpp
+    src/EntityController.cpp
     src/Input.cpp
     src/Mesh.cpp
     src/Physics.cpp

@@ -1,4 +1,5 @@
 #include <NihilEngine/Camera.h>
+#include <NihilEngine/Constants.h>
 #include <glm/gtc/matrix_transform.hpp>
 #include <glm/gtc/constants.hpp>
 
@@ -7,7 +8,7 @@ namespace NihilEngine {
     Camera::Camera(float fov, float aspect, float near, float far, ProjectionType type)
         : m_FOV(fov), m_Aspect(aspect), m_Near(near), m_Far(far),
           m_ProjectionType(type),
-          m_Forward(0.0f, 0.0f, -1.0f)  // Regarde vers -Z par défaut
+          m_Forward(0.0f, 0.0f, Constants::FORWARD_Z_DEFAULT)
     {
         UpdateProjectionMatrix();
         UpdateViewMatrix();
@@ -20,13 +21,12 @@ namespace NihilEngine {
 
     void Camera::SetRotation(float yaw, float pitch) {
         m_Yaw = yaw;
-        m_Pitch = glm::clamp(pitch, -89.0f, 89.0f);
+        m_Pitch = glm::clamp(pitch, -Constants::MAX_PITCH, Constants::MAX_PITCH);
         UpdateViewMatrix();
     }
 
     void Camera::SetForward(const glm::vec3& forward) {
         m_Forward = glm::normalize(forward);
-        // Recalcule yaw/pitch à partir du vecteur forward
         m_Yaw = glm::degrees(std::atan2(m_Forward.z, m_Forward.x));
         m_Pitch = glm::degrees(std::asin(m_Forward.y));
         UpdateViewMatrix();
@@ -75,7 +75,6 @@ namespace NihilEngine {
     }
 
     glm::vec3 Camera::GetForward() const {
-        // Calcule TOUJOURS à partir de yaw/pitch
         glm::vec3 front;
         front.x = cos(glm::radians(m_Yaw)) * cos(glm::radians(m_Pitch));
         front.y = sin(glm::radians(m_Pitch));
@@ -101,13 +100,11 @@ namespace NihilEngine {
     }
 
     bool Camera::IsPointInFrustum(const glm::vec3& point) const {
-        // TODO: Implémenter le vrai frustum culling
         return true;
     }
 
     bool Camera::IsSphereInFrustum(const glm::vec3& center, float radius) const {
-        // TODO: Implémenter le vrai test
         return true;
     }
 
-} // namespace NihilEngine
+}

@@ -1,9 +1,10 @@
 // MonJeu/src/Player.cpp
 #include <MonJeu/Player.h>
 #include <MonJeu/VoxelWorld.h>
+#include <MonJeu/Constants.h>
 #include <NihilEngine/Input.h>
 #include <NihilEngine/Renderer.h>
-#include <NihilEngine/Physics.h>  // Pour RaycastHit
+#include <NihilEngine/Physics.h>
 #include <glm/glm.hpp>
 #include <glm/gtc/constants.hpp>
 #include <GLFW/glfw3.h>
@@ -25,14 +26,6 @@ namespace MonJeu {
     Player::~Player() = default;
 
     void Player::Update(float deltaTime, NihilEngine::Camera& camera, VoxelWorld& world, bool isCurrent) {
-        const float speed = 5.0f;
-        const float gravity = 40.0f;
-        const float jumpForce = 10.0f;
-        const float playerHeight = 1.8f;
-        const float mouseSensitivity = 0.1f;
-
-        // === 1. ROTATION CAMÉRA (souris) ===
-        // Synchronise avec la caméra si c'est le joueur actuel (pour les switches)
         if (isCurrent) {
             m_Yaw = camera.GetYaw();
             m_Pitch = camera.GetPitch();
@@ -41,9 +34,9 @@ namespace MonJeu {
         double mouseDeltaX, mouseDeltaY;
         NihilEngine::Input::GetMouseDelta(mouseDeltaX, mouseDeltaY);
 
-        m_Yaw += static_cast<float>(mouseDeltaX) * mouseSensitivity;
-        m_Pitch += static_cast<float>(mouseDeltaY) * mouseSensitivity;
-        m_Pitch = glm::clamp(m_Pitch, -89.0f, 89.0f);
+        m_Yaw += static_cast<float>(mouseDeltaX) * Constants::MOUSE_SENSITIVITY;
+        m_Pitch += static_cast<float>(mouseDeltaY) * Constants::MOUSE_SENSITIVITY;
+        m_Pitch = glm::clamp(m_Pitch, -Constants::MAX_PITCH, Constants::MAX_PITCH);
 
         camera.SetRotation(m_Yaw, m_Pitch);
 
@@ -51,7 +44,6 @@ namespace MonJeu {
             m_Facing = camera.GetForward();
         }
 
-        // === 2. POSITION JOUEUR + CAMÉRA ===
         glm::vec3 forward = camera.GetForward();
         glm::vec3 right = camera.GetRight();
 
@@ -67,28 +59,20 @@ namespace MonJeu {
         if (NihilEngine::Input::IsKeyDown(GLFW_KEY_D)) moveInput += right;
 
         if (glm::length(moveInput) > 0.0f) {
-            moveInput = glm::normalize(moveInput) * speed;
+            moveInput = glm::normalize(moveInput) * Constants::PLAYER_SPEED;
         }
 
-        // Toggle flying mode
         if (NihilEngine::Input::IsKeyTriggered(GLFW_KEY_F)) {
             m_IsFlying = !m_IsFlying;
         }
 
-        // === 3. GRAVITÉ & SAUT ===
         if (!m_IsFlying) {
-            m_Velocity.y -= gravity * deltaTime;
+            m_Velocity.y -= Constants::GRAVITY * deltaTime;
             if (NihilEngine::Input::IsKeyDown(GLFW_KEY_SPACE)) {
-                // CORRECTION :
-                // 1. On teste LÉGÈREMENT SOUS les pieds (0.9f + 0.05f)
-                // 2. On vérifie si cet endroit est SOLIDE (donc !IsPositionValid)
+                glm::vec3 belowFeet = m_Position - glm::vec3(0, Constants::PLAYER_HEIGHT * 0.5f + Constants::COLLISION_OFFSET, 0);
 
-                // playerHeight * 0.5f = 0.9f. On teste à 0.95f (juste en dessous)
-                glm::vec3 belowFeet = m_Position - glm::vec3(0, playerHeight * 0.5f + 0.05f, 0);
-
-                // Si c'est solide (!world.IsPositionValid), ALORS on peut sauter.
-                if (!world.IsPositionValid(belowFeet, 0.1f)) {
-                    m_Velocity.y = jumpForce;
+                if (!world.IsPositionValid(belowFeet, Constants::COLLISION_RADIUS)) {
+                    m_Velocity.y = Constants::JUMP_FORCE;
                 }
             }
         } else {
@@ -96,94 +80,75 @@ namespace MonJeu {
         }
 
         if (m_IsFlying) {
-            if (NihilEngine::Input::IsKeyDown(GLFW_KEY_E)) moveInput.y += speed;
-            if (NihilEngine::Input::IsKeyDown(GLFW_KEY_Q)) moveInput.y -= speed;
+            if (NihilEngine::Input::IsKeyDown(GLFW_KEY_E)) moveInput.y += Constants::FLY_SPEED;
+            if (NihilEngine::Input::IsKeyDown(GLFW_KEY_Q)) moveInput.y -= Constants::FLY_SPEED;
         }
 
         glm::vec3 motion = moveInput * deltaTime + m_Velocity * deltaTime;
 
-        // === 4. COLLISION (Corrigée avec séparation des axes) ===
-        // On teste chaque axe séparément pour "glisser"
         glm::vec3 newPos = m_Position;
 
-        // D'abord l'axe Y (vertical)
         newPos.y += motion.y;
-        if (!world.IsPositionValid(newPos, playerHeight)) {
-            newPos.y = m_Position.y; // Annule le mouvement Y
-            m_Velocity.y = 0.0f;       // Stoppe la vitesse verticale (chute/saut)
+        if (!world.IsPositionValid(newPos, Constants::PLAYER_HEIGHT)) {
+            newPos.y = m_Position.y;
+            m_Velocity.y = 0.0f;
         }
 
-        // Puis l'axe X (horizontal)
         newPos.x += motion.x;
-        if (!world.IsPositionValid(newPos, playerHeight)) {
-            newPos.x = m_Position.x; // Annule le mouvement X
+        if (!world.IsPositionValid(newPos, Constants::PLAYER_HEIGHT)) {
+            newPos.x = m_Position.x;
         }
 
-        // Enfin l'axe Z (horizontal)
         newPos.z += motion.z;
-        if (!world.IsPositionValid(newPos, playerHeight)) {
-            newPos.z = m_Position.z; // Annule le mouvement Z
+        if (!world.IsPositionValid(newPos, Constants::PLAYER_HEIGHT)) {
+            newPos.z = m_Position.z;
         }
 
-        // Applique la position finale validée
         m_Position = newPos;
 
-        // === 5. MISE À JOUR CAMÉRA ===
-        glm::vec3 eye = m_Position + glm::vec3(0.0f, 0.9f, 0.0f);
+        glm::vec3 eye = m_Position + glm::vec3(0.0f, Constants::EYE_HEIGHT, 0.0f);
         if (isCurrent) {
             camera.SetPosition(eye);
         }
-        // SetRotation déjà fait → pas besoin de SetTarget
     }
 
-    // === Rendu du joueur (cube plein) ===
     void Player::Render(NihilEngine::Renderer& renderer, const NihilEngine::Camera& camera) {
-        // Modèle placeholder : cube filaire bleu
         glm::vec3 min = m_Position + glm::vec3(-0.5f, 0.0f, -0.5f);
-        glm::vec3 max = m_Position + glm::vec3( 0.5f, 1.8f,  0.5f);
+        glm::vec3 max = m_Position + glm::vec3( 0.5f, Constants::PLAYER_HEIGHT,  0.5f);
         renderer.DrawWireCube(min, max, camera, glm::vec3(0.0f, 0.0f, 1.0f));
 
-        // Champ de vision : lignes pour le cône
         if (m_ShowFOV) {
-            glm::vec3 eye = m_Position + glm::vec3(0.0f, 0.9f, 0.0f);
+            glm::vec3 eye = m_Position + glm::vec3(0.0f, Constants::EYE_HEIGHT, 0.0f);
             glm::vec3 forward = m_Facing;
-            float fovRad = glm::radians(60.0f);
+            float fovRad = glm::radians(Constants::FOV_DEGREES);
             glm::mat4 rotLeft = glm::rotate(glm::mat4(1.0f), fovRad / 2.0f, glm::vec3(0.0f, 1.0f, 0.0f));
             glm::mat4 rotRight = glm::rotate(glm::mat4(1.0f), -fovRad / 2.0f, glm::vec3(0.0f, 1.0f, 0.0f));
             glm::vec3 leftDir = glm::vec3(rotLeft * glm::vec4(forward, 0.0f));
             glm::vec3 rightDir = glm::vec3(rotRight * glm::vec4(forward, 0.0f));
-            renderer.DrawLine3D(eye, eye + forward * 5.0f, camera, glm::vec3(1.0f, 1.0f, 0.0f), 2.0f);
-            renderer.DrawLine3D(eye, eye + leftDir * 5.0f, camera, glm::vec3(1.0f, 1.0f, 0.0f), 2.0f);
-            renderer.DrawLine3D(eye, eye + rightDir * 5.0f, camera, glm::vec3(1.0f, 1.0f, 0.0f), 2.0f);
+            renderer.DrawLine3D(eye, eye + forward * Constants::FOV_DISTANCE, camera, glm::vec3(1.0f, 1.0f, 0.0f), Constants::LINE_WIDTH);
+            renderer.DrawLine3D(eye, eye + leftDir * Constants::FOV_DISTANCE, camera, glm::vec3(1.0f, 1.0f, 0.0f), Constants::LINE_WIDTH);
+            renderer.DrawLine3D(eye, eye + rightDir * Constants::FOV_DISTANCE, camera, glm::vec3(1.0f, 1.0f, 0.0f), Constants::LINE_WIDTH);
         }
     }
 
-    // === Raycast visuel ===
     void Player::RenderRaycast(NihilEngine::Renderer& renderer, const NihilEngine::Camera& camera, VoxelWorld& voxelWorld) {
         if (!m_ShowRaycast) return;
 
-        const float maxDist = 10.0f;
         glm::vec3 start = camera.GetPosition();
         glm::vec3 dir = camera.GetForward();
 
         NihilEngine::RaycastHit hit;
-        bool hitSomething = voxelWorld.Raycast(start, dir, maxDist, hit);
+        bool hitSomething = voxelWorld.Raycast(start, dir, Constants::RAYCAST_MAX_DISTANCE, hit);
 
-        glm::vec3 end = hitSomething ? hit.hitPoint : start + dir * maxDist;
+        glm::vec3 end = hitSomething ? hit.hitPoint : start + dir * Constants::RAYCAST_MAX_DISTANCE;
 
-        // Ligne du raycast
-        renderer.DrawLine3D(start, end, camera, glm::vec3(1.0f, 1.0f, 0.0f), 2.0f);
+        renderer.DrawLine3D(start, end, camera, glm::vec3(1.0f, 1.0f, 0.0f), Constants::LINE_WIDTH);
 
-        // Highlight du bloc
         if (hitSomething) {
             glm::vec3 blockMin = glm::vec3(hit.blockPosition);
             glm::vec3 blockMax = blockMin + glm::vec3(1.0f);
             renderer.DrawWireCube(blockMin, blockMax, camera, glm::vec3(1.0f, 0.5f, 0.0f));
         }
     }
-
-    // === Helpers supprimés (plus nécessaires, tout est dans Renderer) ===
-    // DrawRaycastLine → remplacé par DrawLine3D
-    // DrawBlockHighlight → remplacé par DrawWireCube
 
 } // namespace MonJeu

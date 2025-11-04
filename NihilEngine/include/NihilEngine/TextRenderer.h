@@ -34,4 +34,4 @@ private:
     void InitShader();
 };
 
-} // namespace NihilEngine
+}

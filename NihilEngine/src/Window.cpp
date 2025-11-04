@@ -1,4 +1,5 @@
 ﻿#include <NihilEngine/Window.h>
+#include <NihilEngine/Constants.h>
 #include <glad/glad.h>
 #include <GLFW/glfw3.h>
 #include <NihilEngine/Input.h>
@@ -41,15 +42,12 @@ namespace NihilEngine {
     }
 
     Window::~Window() {
-        // 1. On nettoie l'Input (qui utilise GLFW)
         NihilEngine::Input::Shutdown();
 
-        // 2. Ensuite, on détruit la fenêtre
         if (m_Window) {
             glfwDestroyWindow(m_Window);
         }
 
-        // 3. Finalement, on termine GLFW
         glfwTerminate();
     }
 
@@ -64,11 +62,10 @@ namespace NihilEngine {
 
     void Window::SetFullscreen(bool fullscreen) {
         m_Fullscreen = fullscreen;
-        // Implement toggle fullscreen
     }
 
     void Window::SetVSync(bool enabled) {
-        glfwSwapInterval(enabled ? 1 : 0);
+        glfwSwapInterval(enabled ? Constants::VSYNC_ENABLED : Constants::VSYNC_DISABLED);
     }
 
     void Window::FramebufferSizeCallback(GLFWwindow* window, int width, int height) {
@@ -81,4 +78,4 @@ namespace NihilEngine {
         }
     }
 
-} // namespace NihilEngine
+}

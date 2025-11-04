@@ -2,17 +2,18 @@
 #include <NihilEngine/Renderer.h>
 #include <NihilEngine/Camera.h>
 #include <NihilEngine/Physics.h>
+#include <NihilEngine/IControllableEntity.h>
 #include <glm/glm.hpp>
 
 namespace MonJeu {
     class VoxelWorld;
 
-    class Player {
+    class Player : public NihilEngine::IControllableEntity {
         public:
             Player();
             ~Player();
-            void Update(float deltaTime, NihilEngine::Camera& camera, VoxelWorld& world, bool isCurrent = true);
-            void Render(NihilEngine::Renderer& renderer, const NihilEngine::Camera& camera);
+            void Update(float deltaTime, NihilEngine::Camera& camera, VoxelWorld& world, bool isCurrent) override;
+            void Render(NihilEngine::Renderer& renderer, const NihilEngine::Camera& camera) override;
 
 
             // Debug info rendering moved to overlay, but keep raycast vis here

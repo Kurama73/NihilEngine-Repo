@@ -20,7 +20,6 @@ namespace NihilEngine {
         static void GetMouseDelta(double& x, double& y);
         static void GetMousePos(double& x, double& y);
 
-        // Action mapping
         static void BindKeyAction(int key, std::function<void()> action);
         static void ProcessActions();
 

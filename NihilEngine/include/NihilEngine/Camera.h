@@ -17,7 +17,7 @@ namespace NihilEngine {
 
         void SetPosition(const glm::vec3& position);
         void SetRotation(float yaw, float pitch);
-        void SetForward(const glm::vec3& forward);  // ← déclaré ici
+        void SetForward(const glm::vec3& forward);
         void SetProjectionType(ProjectionType type);
         void SetOrthoBounds(float left, float right, float bottom, float top);
         void SetTarget(const glm::vec3& target);
@@ -36,16 +36,15 @@ namespace NihilEngine {
         void SetAspect(float aspect);
         void UpdateProjectionMatrix();
 
-        // Frustum culling helpers
         bool IsPointInFrustum(const glm::vec3& point) const;
         bool IsSphereInFrustum(const glm::vec3& center, float radius) const;
 
     private:
-        void UpdateViewMatrix();  // ← AJOUTÉ ICI
+        void UpdateViewMatrix();
 
         glm::vec3 m_Position = glm::vec3(0.0f);
         glm::vec3 m_Up = glm::vec3(0.0f, 1.0f, 0.0f);
-        glm::vec3 m_Forward = glm::vec3(0.0f, 0.0f, -1.0f);  // ← AJOUTÉ
+        glm::vec3 m_Forward = glm::vec3(0.0f, 0.0f, -1.0f);
         float m_Yaw = 0.0f;
         float m_Pitch = 0.0f;
 
@@ -59,6 +58,6 @@ namespace NihilEngine {
 
         ProjectionType m_ProjectionType = ProjectionType::Perspective;
         glm::mat4 m_ProjectionMatrix;
-        glm::mat4 m_ViewMatrix;  // ← optionnel, mais utile
+        glm::mat4 m_ViewMatrix;
     };
 }

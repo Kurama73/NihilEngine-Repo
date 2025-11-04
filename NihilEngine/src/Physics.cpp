@@ -1,5 +1,6 @@
 // Physics.cpp
 #include <NihilEngine/Physics.h>
+#include <NihilEngine/Constants.h>
 #include <limits>
 #include <algorithm>
 
@@ -16,7 +17,7 @@ bool RaycastVoxel(
     glm::vec3 tMax, tDelta;
     glm::ivec3 step;
 
-    for (int i = 0; i < 3; ++i) {
+    for (int i = 0; i < Constants::AXIS_COUNT; ++i) {
         if (direction[i] > 0.0f) {
             step[i] = 1;
             tMax[i] = (currentVoxel[i] + 1 - origin[i]) / direction[i];
@@ -94,4 +95,4 @@ bool RayAABBIntersection(const glm::vec3& origin, const glm::vec3& direction, co
     return true;
 }
 
-} // namespace NihilEngine
+}

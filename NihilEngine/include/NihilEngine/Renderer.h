@@ -29,4 +29,4 @@ private:
     unsigned int m_LineVAO = 0, m_LineVBO = 0;
 };
 
-} // namespace NihilEngine
+}

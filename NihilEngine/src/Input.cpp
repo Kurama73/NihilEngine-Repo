@@ -111,4 +111,4 @@ namespace NihilEngine {
             s_CurrentMouseButtons[button] = false;
         }
     }
-} // namespace NihilEngine
+}

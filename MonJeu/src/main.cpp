@@ -4,9 +4,11 @@
 #include <NihilEngine/Renderer.h>
 #include <NihilEngine/Camera.h>
 #include <NihilEngine/Input.h>
+#include <NihilEngine/EntityController.h>
 #include <MonJeu/VoxelWorld.h>
 #include <MonJeu/Player.h>
 #include <MonJeu/GameDebugOverlay.h>
+#include <MonJeu/Constants.h>
 #include <glad/glad.h>
 #include <GLFW/glfw3.h>
 #include <vector>
@@ -21,12 +23,12 @@ int main() {
         window.SetCamera(&camera);
 
         MonJeu::VoxelWorld voxelWorld;
-        MonJeu::Player player;
-        MonJeu::Player otherPlayer; // Autre joueur
+        MonJeu::Player myPlayer;
+        MonJeu::Player testPlayer;
         MonJeu::GameDebugOverlay debugOverlay(1280, 720);
 
-        std::vector<MonJeu::Player*> controllablePlayers = {&player, &otherPlayer};
-        int currentPlayerIndex = 0;
+        // Entity controller pour gérer le switching
+        NihilEngine::EntityController entityController(camera, GLFW_KEY_TAB);
 
         // === CHARGER LA POLICE (OBLIGATOIRE) ===
         bool fontLoaded = false;
@@ -51,30 +53,32 @@ int main() {
             std::cerr << "All fonts failed to load! Text will be invisible." << std::endl;
         }
 
-        // === GÉNÉRER LE MONDE ===
-        for (int chunkX = -3; chunkX <= 3; ++chunkX) {
-            for (int chunkZ = -3; chunkZ <= 3; ++chunkZ) {
+        // GÉNÉRER LE MONDE
+        for (int chunkX = -MonJeu::Constants::WORLD_GENERATION_RANGE; chunkX <= MonJeu::Constants::WORLD_GENERATION_RANGE; ++chunkX) {
+            for (int chunkZ = -MonJeu::Constants::WORLD_GENERATION_RANGE; chunkZ <= MonJeu::Constants::WORLD_GENERATION_RANGE; ++chunkZ) {
                 voxelWorld.GenerateChunk(chunkX, chunkZ);
             }
         }
 
-        // === SPAWN JOUEUR AU-DESSUS DU SOL ===
+        // SPAWN JOUEUR AU-DESSUS DU SOL
         glm::vec3 rayOrigin = glm::vec3(0.0f, 100.0f, 0.0f);
         glm::vec3 rayDirection = glm::vec3(0.0f, -1.0f, 0.0f);
         NihilEngine::RaycastHit hit;
         if (voxelWorld.Raycast(rayOrigin, rayDirection, 200.0f, hit)) {
-            player.SetPosition(hit.hitPoint + glm::vec3(0.0f, 0.9f, 0.0f)); // Base à hit, center à hit + 0.9
+            myPlayer.SetPosition(hit.hitPoint + glm::vec3(0.0f, MonJeu::Constants::EYE_HEIGHT, 0.0f));
         } else {
-            player.SetPosition(glm::vec3(0.0f, 10.0f, 0.0f));
+            myPlayer.SetPosition(glm::vec3(0.0f, 10.0f, 0.0f));
         }
-        // Spawn autre joueur décalé
-        otherPlayer.SetPosition(player.GetPosition() + glm::vec3(2.0f, 0.0f, 2.0f));
-        otherPlayer.SetShowFOV(true);
-        otherPlayer.SetFacing(glm::vec3(1.0f, 0.0f, 0.0f));
-        // Calcule yaw/pitch pour la direction +X (1,0,0)
-        otherPlayer.SetYaw(0.0f);  // atan2(0, 1) = 0
-        otherPlayer.SetPitch(0.0f);
-        camera.SetPosition(player.GetPosition() + glm::vec3(0.0f, 0.9f, 3.0f));
+        testPlayer.SetPosition(myPlayer.GetPosition() + glm::vec3(2.0f, 0.0f, 2.0f));
+        testPlayer.SetShowFOV(true);
+        testPlayer.SetFacing(glm::vec3(1.0f, 0.0f, 0.0f));
+        testPlayer.SetYaw(0.0f);
+        testPlayer.SetPitch(0.0f);
+        camera.SetPosition(myPlayer.GetPosition() + glm::vec3(0.0f, MonJeu::Constants::EYE_HEIGHT, 3.0f));
+
+        // Ajoute les joueurs au controller
+        entityController.AddControllableEntity(&myPlayer);
+        entityController.AddControllableEntity(&testPlayer);
 
         // === BOUCLE PRINCIPALE ===
         float lastTime = static_cast<float>(glfwGetTime());
@@ -105,31 +109,22 @@ int main() {
             if (NihilEngine::Input::IsKeyTriggered(GLFW_KEY_F5)) debugOverlay.ToggleFPS();
             if (NihilEngine::Input::IsKeyTriggered(GLFW_KEY_F6)) debugOverlay.TogglePositions();
             if (NihilEngine::Input::IsKeyTriggered(GLFW_KEY_F7)) debugOverlay.ToggleChunkInfo();
-            if (NihilEngine::Input::IsKeyTriggered(GLFW_KEY_F4)) player.ToggleRaycastVis();
-            if (NihilEngine::Input::IsKeyTriggered(GLFW_KEY_TAB)) {
-                currentPlayerIndex = (currentPlayerIndex + 1) % controllablePlayers.size();
-                auto* current = controllablePlayers[currentPlayerIndex];
-                camera.SetPosition(current->GetPosition() + glm::vec3(0.0f, 0.9f, 3.0f));
-                camera.SetForward(current->GetFacing());
-                // Synchronise les yaw/pitch du joueur avec la caméra
-                current->SetYaw(camera.GetYaw());
-                current->SetPitch(camera.GetPitch());
-            }
+            if (NihilEngine::Input::IsKeyTriggered(GLFW_KEY_F4)) myPlayer.ToggleRaycastVis();
 
             // === MISE À JOUR ===
-            controllablePlayers[currentPlayerIndex]->Update(deltaTime, camera, voxelWorld, true);
+            entityController.Update(deltaTime, voxelWorld);
             voxelWorld.UpdateDirtyChunks();
 
-            // === RAYCAST INTERACTION ===
+            // RAYCAST INTERACTION
             glm::vec3 origin = camera.GetPosition();
             glm::vec3 direction = camera.GetForward();
             if (NihilEngine::Input::IsMouseButtonPressed(GLFW_MOUSE_BUTTON_LEFT)) {
-                if (voxelWorld.Raycast(origin, direction, 6.0f, hit)) {
+                if (voxelWorld.Raycast(origin, direction, MonJeu::Constants::RAYCAST_DISTANCE, hit)) {
                     voxelWorld.SetVoxelActive(hit.blockPosition.x, hit.blockPosition.y, hit.blockPosition.z, false);
                 }
             }
             if (NihilEngine::Input::IsMouseButtonPressed(GLFW_MOUSE_BUTTON_RIGHT)) {
-                if (voxelWorld.Raycast(origin, direction, 6.0f, hit)) {
+                if (voxelWorld.Raycast(origin, direction, MonJeu::Constants::RAYCAST_DISTANCE, hit)) {
                     glm::ivec3 placePos = hit.blockPosition + glm::ivec3(hit.hitNormal.x, hit.hitNormal.y, hit.hitNormal.z);
                     voxelWorld.SetVoxelActive(placePos.x, placePos.y, placePos.z, true);
                 }
@@ -140,14 +135,10 @@ int main() {
 
             // 3D World
             voxelWorld.Render(renderer, camera);
-            // player.Render(renderer, camera); // Désactivé pour vue à la première personne
-            for (auto* p : controllablePlayers) {
-                if (p != controllablePlayers[currentPlayerIndex]) { // Render others
-                    p->Render(renderer, camera);
-                }
-            }
-            if (player.IsRaycastVisible()) {
-                player.RenderRaycast(renderer, camera, voxelWorld);
+            // Rendu des entités contrôlables (sauf l'entité actuelle en vue première personne)
+            entityController.Render(renderer, camera, true);
+            if (myPlayer.IsRaycastVisible()) {
+                myPlayer.RenderRaycast(renderer, camera, voxelWorld);
             }
 
             // UI
@@ -160,11 +151,11 @@ int main() {
                 fps,
                 static_cast<int>(voxelWorld.GetChunks().size()),
                 camera.GetPosition(),
-                player.GetPosition()
+                myPlayer.GetPosition()
             );
 
-            NihilEngine::Input::Update(); // Réinitialise l'input de la frame précédente
-            window.OnUpdate();            // Récupère l'input pour la frame suivante
+            NihilEngine::Input::Update();
+            window.OnUpdate();
         }
 
         // Shutdown

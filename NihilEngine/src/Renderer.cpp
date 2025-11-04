@@ -2,6 +2,7 @@
 #include <NihilEngine/Renderer.h>
 #include <NihilEngine/Camera.h>
 #include <NihilEngine/Entity.h>
+#include <NihilEngine/Constants.h>
 #include <glad/glad.h>
 #include <glm/gtc/type_ptr.hpp>
 #include <iostream>
@@ -164,7 +165,7 @@ void Renderer::InitCrosshair() {
     glDeleteShader(vertex);
     glDeleteShader(fragment);
 
-    float size = 10.0f;
+    float size = Constants::CROSSHAIR_SIZE;
     std::vector<float> vertices = {
         -size, 0.0f,
          size, 0.0f,
@@ -221,6 +222,9 @@ void Renderer::DrawEntity(const Entity& entity, const Camera& camera) {
     glUniformMatrix4fv(glGetUniformLocation(m_ShaderProgram, "u_Model"), 1, GL_FALSE, glm::value_ptr(entity.GetModelMatrix()));
     glUniform3fv(glGetUniformLocation(m_ShaderProgram, "u_ViewPos"), 1, glm::value_ptr(camera.GetPosition()));
 
+    // Set lighting uniforms
+    glUniform3f(glGetUniformLocation(m_ShaderProgram, "u_LightPos"), Constants::LIGHT_POS_X, Constants::LIGHT_POS_Y, Constants::LIGHT_POS_Z);
+
     const auto& material = entity.GetMaterial();
     glUniform4fv(glGetUniformLocation(m_ShaderProgram, "u_Color"), 1, glm::value_ptr(material.color));
     bool hasTexture = material.textureID.has_value();
@@ -251,7 +255,7 @@ void Renderer::DrawCrosshair(int windowWidth, int windowHeight) {
     glUniformMatrix4fv(glGetUniformLocation(m_CrosshairShaderProgram, "u_Projection"), 1, GL_FALSE, glm::value_ptr(proj));
     glUniformMatrix4fv(glGetUniformLocation(m_CrosshairShaderProgram, "u_Model"), 1, GL_FALSE, glm::value_ptr(model));
 
-    glLineWidth(2.0f);
+    glLineWidth(Constants::LINE_WIDTH_DEFAULT);
     glBindVertexArray(m_CrosshairVAO);
     glDrawArrays(GL_LINES, 0, 4);
     glBindVertexArray(0);
@@ -309,7 +313,7 @@ void Renderer::DrawWireCube(const glm::vec3& min, const glm::vec3& max, const Ca
     glBindVertexArray(m_LineVAO);
     glBindBuffer(GL_ARRAY_BUFFER, m_LineVBO);
     glBufferData(GL_ARRAY_BUFFER, sizeof(edges), edges, GL_DYNAMIC_DRAW);
-    glLineWidth(2.0f);
+    glLineWidth(Constants::LINE_WIDTH_DEFAULT);
     glDrawArrays(GL_LINES, 0, 24);
     glBindVertexArray(0);
     glEnable(GL_DEPTH_TEST);
@@ -324,9 +328,6 @@ void Renderer::DrawCube(const glm::mat4& model, const glm::vec4& color, const Ca
     glUniform3fv(glGetUniformLocation(m_ShaderProgram, "u_ViewPos"), 1, glm::value_ptr(camera.GetPosition()));
     glUniform4fv(glGetUniformLocation(m_ShaderProgram, "u_Color"), 1, glm::value_ptr(color));
     glUniform1i(glGetUniformLocation(m_ShaderProgram, "u_HasTexture"), false);
-
-    // Cube simple (6 faces) → tu dois avoir un VAO cube quelque part
-    // Ou réutiliser un Entity avec un cube mesh
 }
 
-} // namespace NihilEngine
+}

@@ -51,4 +51,4 @@ namespace NihilEngine {
         return m_Children;
     }
 
-} // namespace NihilEngine
+}

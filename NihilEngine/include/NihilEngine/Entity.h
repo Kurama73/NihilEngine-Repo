@@ -35,7 +35,6 @@ namespace NihilEngine {
         const Mesh& GetMesh() const;
         const Material& GetMaterial() const;
 
-        // Hierarchy
         void AddChild(Entity* child);
         std::vector<Entity*>& GetChildren();
 
