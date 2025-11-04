@@ -29,7 +29,8 @@
             "command": "cmake",
             "args": [
                 "..",
-                "-DCMAKE_TOOLCHAIN_FILE=C:/dev/vcpkg/scripts/buildsystems/vcpkg.cmake"
+                "-C",
+                "${workspaceFolder}/initial-cache.cmake"
             ],
             "options": {
                 "cwd": "${workspaceFolder}/build"
