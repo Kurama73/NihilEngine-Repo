@@ -1,15 +1,12 @@
 #pragma once
-
 #include <vector>
 #include <unordered_map>
-#include <string> // Pour std::hash
 #include <glm/glm.hpp>
 #include <NihilEngine/Entity.h>
 #include <NihilEngine/Mesh.h>
-#include <NihilEngine/Physics.h> // <- Inclure pour RaycastHit
+#include <NihilEngine/Physics.h>
 #include <memory>
 
-// Fwd declarations
 namespace NihilEngine {
     class Renderer;
     class Camera;
@@ -17,83 +14,67 @@ namespace NihilEngine {
 
 namespace MonJeu {
 
-    // Types de blocs
-    enum class BlockType {
-        Air,
-        Grass,
-        Dirt,
-        Stone
-    };
+enum class BlockType { Air, Grass, Dirt, Stone };
 
-    // Un voxel individuel
-    struct Voxel {
-        BlockType type = BlockType::Air;
-        bool active = false;
-    };
+struct Voxel {
+    BlockType type = BlockType::Air;
+    bool active = false;
+};
 
-    // Chunk de 16x16x16 voxels
-    class Chunk {
-    public:
-        static const int SIZE = 16;
+class Chunk {
+public:
+    static const int SIZE = 16;
+    Chunk(int chunkX, int chunkZ);
+    ~Chunk() = default;
 
-        Chunk();
-        Chunk(int chunkX, int chunkZ);
-        ~Chunk() = default;
+    void GenerateTerrain();
+    NihilEngine::Mesh CreateMesh() const;
 
-        // Génération procédurale simple
-        void GenerateTerrain();
+    Voxel& GetVoxel(int x, int y, int z);
+    const Voxel& GetVoxel(int x, int y, int z) const;
 
-        // Créer le mesh du chunk (seulement faces visibles)
-        NihilEngine::Mesh CreateMesh() const;
+    int GetChunkX() const { return m_ChunkX; }
+    int GetChunkZ() const { return m_ChunkZ; }
 
-        // Accès aux voxels
-        Voxel& GetVoxel(int x, int y, int z);
-        const Voxel& GetVoxel(int x, int y, int z) const;
+private:
+    int m_ChunkX, m_ChunkZ;
+    std::vector<Voxel> m_Voxels;
 
-        // Getters
-        int GetChunkX() const { return m_ChunkX; }
-        int GetChunkZ() const { return m_ChunkZ; }
+    int GetIndex(int x, int y, int z) const;
+    void AddVisibleFacesToMesh(std::vector<float>& vertices, std::vector<unsigned int>& indices, int x, int y, int z, BlockType type, const bool visible[6]) const;
+};
 
-    private:
-        int m_ChunkX, m_ChunkZ;
-        std::vector<Voxel> m_Voxels; // SIZE*SIZE*SIZE
+class VoxelWorld {
+public:
+    VoxelWorld();
+    ~VoxelWorld() = default;
 
-        // Helper pour indexer
-        int GetIndex(int x, int y, int z) const;
+    void GenerateChunk(int chunkX, int chunkZ);
+    void UpdateDirtyChunks();
+    void Render(NihilEngine::Renderer& renderer, const NihilEngine::Camera& camera);
 
-        // Ajouter les faces visibles d'un cube au mesh
-        void AddVisibleFacesToMesh(std::vector<float>& vertices, std::vector<unsigned int>& indices, int x, int y, int z, BlockType type, const bool visible[6]) const;
-    };
+    bool Raycast(const glm::vec3& origin, const glm::vec3& direction, float maxDistance, NihilEngine::RaycastHit& hitResult);
 
-    // Monde voxel gérant plusieurs chunks
-    class VoxelWorld {
-    public:
-        VoxelWorld();
-        ~VoxelWorld() = default;
+    void SetVoxelActive(int worldX, int worldY, int worldZ, bool active);
+    bool GetVoxelActive(int worldX, int worldY, int worldZ) const;
 
-        void GenerateChunk(int chunkX, int chunkZ);
-        void UpdateDirtyChunks();
-        void Render(NihilEngine::Renderer& renderer, const NihilEngine::Camera& camera);
+    bool IsPositionValid(const glm::vec3& position, float height);
 
-        const std::unordered_map<uint64_t, Chunk>& GetChunks() const;
+    // CORRIGÉ : Ajout de GetChunks()
+    const std::unordered_map<uint64_t, std::unique_ptr<NihilEngine::Entity>>& GetChunks() const {
+        return m_ChunkEntities;
+    }
 
-        static void WorldToChunk(int worldX, int worldZ, int& chunkX, int& chunkZ);
+    int GetChunkCount() const { return m_Chunks.size(); }
 
-        // --- NOUVEAU RAYCAST ---
-        // Utilise la structure RaycastHit du moteur
-        bool Raycast(const glm::vec3& origin, const glm::vec3& direction, float maxDistance, NihilEngine::RaycastHit& result);
+    static void WorldToChunk(int worldX, int worldZ, int& chunkX, int& chunkZ);
 
-        void SetVoxelActive(int worldX, int worldY, int worldZ, bool active);
-        bool GetVoxelActive(int worldX, int worldY, int worldZ) const;
+private:
+    std::unordered_map<uint64_t, std::unique_ptr<Chunk>> m_Chunks;
+    std::unordered_map<uint64_t, std::unique_ptr<NihilEngine::Entity>> m_ChunkEntities;
+    std::vector<uint64_t> m_DirtyChunks;
 
-    private:
-        std::unordered_map<uint64_t, Chunk> m_Chunks; // Key: (chunkX << 32) | chunkZ
-        uint64_t GetChunkKey(int chunkX, int chunkZ) const;
+    uint64_t GetChunkKey(int chunkX, int chunkZ) const;
+};
 
-        // --- MEMBRES AJOUTÉS ---
-        // (Ils étaient dans ton .cpp mais manquaient ici)
-        std::unordered_map<uint64_t, std::unique_ptr<NihilEngine::Entity>> m_ChunkEntities;
-        std::vector<uint64_t> m_DirtyChunks;
-    };
-
-}
+} // namespace MonJeu

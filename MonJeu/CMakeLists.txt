@@ -1,23 +1,24 @@
-﻿# 1. Créer une BIBLIOTHÈQUE pour la logique du jeu
-# Cela permet aux tests de se lier à la logique du jeu sans l'exécutable
+﻿# CMakeLists.txt snippet (updated)
 add_library(MonJeuLib
     src/VoxelWorld.cpp
+    src/Player.cpp
+    src/GameDebugOverlay.cpp
 )
 
-# La bibliothèque a besoin des en-têtes du moteur et de ses propres en-têtes
+set_target_properties(MonJeuLib PROPERTIES CXX_STANDARD 17 CXX_STANDARD_REQUIRED YES)
+
 target_include_directories(MonJeuLib PUBLIC
     $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
     $<INSTALL_INTERFACE:include>
-    ${CMAKE_SOURCE_DIR}/NihilEngine/include # Accès au moteur
+    ${CMAKE_SOURCE_DIR}/NihilEngine/include
 )
 
-# Lie la logique du jeu au moteur
 target_link_libraries(MonJeuLib PUBLIC NihilEngine)
 
-# 2. Créer l'exécutable du jeu
 add_executable(MonJeu
     src/main.cpp
 )
 
-# Lier l'exécutable à la bibliothèque de logique du jeu
+set_target_properties(MonJeu PROPERTIES CXX_STANDARD 17 CXX_STANDARD_REQUIRED YES)
+
 target_link_libraries(MonJeu PUBLIC MonJeuLib)

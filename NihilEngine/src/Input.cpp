@@ -1,8 +1,8 @@
 #include <NihilEngine/Input.h>
+#include <iostream>
 
 namespace NihilEngine {
 
-    // (Initialisation des membres statiques... reste la même)
     GLFWwindow* Input::s_Window = nullptr;
     double Input::s_LastMouseX = 0.0;
     double Input::s_LastMouseY = 0.0;
@@ -13,7 +13,7 @@ namespace NihilEngine {
     std::map<int, bool> Input::s_LastMouseButtons;
     std::map<int, bool> Input::s_CurrentKeys;
     std::map<int, bool> Input::s_LastKeys;
-
+    std::map<int, std::function<void()>> Input::s_KeyActions;
 
     void Input::Init(GLFWwindow* window) {
         s_Window = window;
@@ -24,18 +24,22 @@ namespace NihilEngine {
         glfwSetMouseButtonCallback(window, MouseButtonCallback);
     }
 
+    void Input::Shutdown() {
+        if (s_Window) {
+            glfwSetCursorPosCallback(s_Window, nullptr);
+            glfwSetKeyCallback(s_Window, nullptr);
+            glfwSetMouseButtonCallback(s_Window, nullptr);
+            s_Window = nullptr;
+        }
+        s_KeyActions.clear();
+    }
+
     void Input::Update() {
-        // Copie l'état actuel dans "dernier état"
         s_LastMouseButtons = s_CurrentMouseButtons;
         s_LastKeys = s_CurrentKeys;
 
-        // Réinitialise les deltas (important!)
         s_MouseDeltaX = 0.0;
         s_MouseDeltaY = 0.0;
-
-        // --- LA CORRECTION EST ICI ---
-        // Cet appel est déjà fait par Window::OnUpdate()
-        // glfwPollEvents(); // <-- SUPPRIMER CETTE LIGNE
     }
 
     bool Input::IsKeyPressed(int key) {
@@ -54,6 +58,10 @@ namespace NihilEngine {
         return s_CurrentMouseButtons[button];
     }
 
+    bool Input::IsKeyDown(int key) {
+        return IsKeyPressed(key);
+    }
+
     void Input::GetMouseDelta(double& x, double& y) {
         x = s_MouseDeltaX;
         y = s_MouseDeltaY;
@@ -63,7 +71,18 @@ namespace NihilEngine {
         glfwGetCursorPos(s_Window, &x, &y);
     }
 
-    // Callbacks
+    void Input::BindKeyAction(int key, std::function<void()> action) {
+        s_KeyActions[key] = action;
+    }
+
+    void Input::ProcessActions() {
+        for (auto& pair : s_KeyActions) {
+            if (IsKeyTriggered(pair.first)) {
+                pair.second();
+            }
+        }
+    }
+
     void Input::CursorPosCallback(GLFWwindow* window, double xpos, double ypos) {
         if (s_FirstMouse) {
             s_LastMouseX = xpos;
@@ -72,7 +91,7 @@ namespace NihilEngine {
         }
 
         s_MouseDeltaX = xpos - s_LastMouseX;
-        s_MouseDeltaY = s_LastMouseY - ypos; // Inverted Y
+        s_MouseDeltaY = s_LastMouseY - ypos;
         s_LastMouseX = xpos;
         s_LastMouseY = ypos;
     }
@@ -92,4 +111,4 @@ namespace NihilEngine {
             s_CurrentMouseButtons[button] = false;
         }
     }
-}
+} // namespace NihilEngine

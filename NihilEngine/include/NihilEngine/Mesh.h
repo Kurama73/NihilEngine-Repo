@@ -5,16 +5,18 @@
 #include <glm/glm.hpp>
 
 namespace NihilEngine {
+    enum class VertexAttribute {
+        Position,
+        Normal,
+        TexCoord,
+        Color
+    };
+
     class Mesh {
     public:
-        Mesh(const std::vector<float>& vertices, const std::vector<unsigned int>& indices);
+        Mesh(const std::vector<float>& vertices, const std::vector<unsigned int>& indices, const std::vector<VertexAttribute>& attributes);
         ~Mesh();
 
-        // Interdire la copie
-        Mesh(const Mesh&) = delete;
-        Mesh& operator=(const Mesh&) = delete;
-
-        // Autoriser le déplacement
         Mesh(Mesh&& other) noexcept;
         Mesh& operator=(Mesh&& other) noexcept;
 
@@ -24,9 +26,11 @@ namespace NihilEngine {
 
         static Mesh CreateCube(float size = 1.0f);
         static Mesh CreateTriangle(float size = 1.0f);
+        static Mesh CreateQuad(float size = 1.0f);
 
     private:
         GLuint m_VAO, m_VBO, m_EBO;
         int m_IndexCount;
+        void SetupAttributes(const std::vector<VertexAttribute>& attributes);
     };
 }

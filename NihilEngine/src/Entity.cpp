@@ -2,16 +2,8 @@
 
 namespace NihilEngine {
 
-    Entity::Entity(Mesh&& mesh,
-                   const glm::vec3& position,
-                   const glm::vec3& rotation,
-                   const glm::vec3& scale,
-                   const glm::vec4& color)
-        : m_Mesh(std::move(mesh)),
-          m_Position(position),
-          m_Rotation(rotation),
-          m_Scale(scale),
-          m_Color(color) {}
+    Entity::Entity(Mesh&& mesh, const glm::vec3& position, const glm::vec3& rotation, const glm::vec3& scale, const Material& material)
+        : m_Mesh(std::move(mesh)), m_Position(position), m_Rotation(rotation), m_Scale(scale), m_Material(material) {}
 
     void Entity::SetPosition(const glm::vec3& position) {
         m_Position = position;
@@ -25,8 +17,12 @@ namespace NihilEngine {
         m_Scale = scale;
     }
 
-    void Entity::SetColor(const glm::vec4& color) {
-        m_Color = color;
+    void Entity::SetMaterial(const Material& material) {
+        m_Material = material;
+    }
+
+    void Entity::SetMesh(Mesh&& newMesh) {
+        m_Mesh = std::move(newMesh);
     }
 
     glm::mat4 Entity::GetModelMatrix() const {
@@ -42,12 +38,17 @@ namespace NihilEngine {
         return m_Mesh;
     }
 
-    glm::vec4 Entity::GetColor() const {
-        return m_Color;
+    const Material& Entity::GetMaterial() const {
+        return m_Material;
     }
 
-    void Entity::SetMesh(Mesh&& newMesh) {
-        m_Mesh = std::move(newMesh);
+    void Entity::AddChild(Entity* child) {
+        child->m_Parent = this;
+        m_Children.push_back(child);
+    }
+
+    std::vector<Entity*>& Entity::GetChildren() {
+        return m_Children;
     }
 
 } // namespace NihilEngine

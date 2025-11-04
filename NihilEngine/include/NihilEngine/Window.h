@@ -7,12 +7,8 @@ struct GLFWwindow;
 namespace NihilEngine {
     class Window {
     public:
-        Window(int width, int height, const char* title);
+        Window(int width, int height, const char* title, bool fullscreen = false);
         ~Window();
-
-        // Empêcher la copie de la fenêtre
-        Window(const Window&) = delete;
-        Window& operator=(const Window&) = delete;
 
         bool ShouldClose();
         void OnUpdate();
@@ -22,14 +18,15 @@ namespace NihilEngine {
         int GetWidth() const { return m_Width; }
         int GetHeight() const { return m_Height; }
 
+        void SetFullscreen(bool fullscreen);
+        void SetVSync(bool enabled);
+
     private:
         GLFWwindow* m_Window;
+        Camera* m_Camera = nullptr;
+        int m_Width, m_Height;
+        bool m_Fullscreen = false;
 
-        Camera* m_Camera = nullptr; // Pointeur vers la caméra principale
-        int m_Width;
-        int m_Height;
-
-        // Callback statique pour GLFW
         static void FramebufferSizeCallback(GLFWwindow* window, int width, int height);
     };
 }
