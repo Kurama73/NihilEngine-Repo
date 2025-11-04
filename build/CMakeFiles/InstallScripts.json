@@ -1,9 +1,0 @@
-{
-	"InstallScripts" : 
-	[
-		"C:/dev/NihilEngine-Repo/build/cmake_install.cmake",
-		"C:/dev/NihilEngine-Repo/build/NihilEngine/cmake_install.cmake",
-		"C:/dev/NihilEngine-Repo/build/MonJeu/cmake_install.cmake"
-	],
-	"Parallel" : false
-}
