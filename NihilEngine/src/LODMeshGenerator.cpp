@@ -53,7 +53,7 @@ LODMeshGenerator::LODParams LODMeshGenerator::getLODParams(ChunkLODLevel level) 
 
 void LODMeshGenerator::generateVoxelBasedMesh(
     LODMesh& mesh,
-    int chunkX, int chunkZ,
+    int chunkX, int chunkZ, // <-- CORRECTION SYNTAXE : virgule au lieu de point-virgule
     const std::vector<std::vector<float>>& heightMap,
     const std::vector<std::vector<int>>& biomeMap,
     const LODParams& params
@@ -72,12 +72,16 @@ void LODMeshGenerator::generateVoxelBasedMesh(
     // Génération des vertices - échantillonnage du terrain réel
     for (int z = 0; z < height; z += step) {
         for (int x = 0; x < width; x += step) {
-            float worldX = chunkX * chunkSize + x;
-            float worldZ = chunkZ * chunkSize + z;
+
+            // --- CORRECTION COORDONNÉES ---
+            float localX = (float)x; // NOUVEAU
+            float localZ = (float)z; // NOUVEAU
+            // --- FIN CORRECTION ---
+
             float terrainHeight = heightMap[z][x];
 
-            // Position du vertex
-            glm::vec3 position(worldX, terrainHeight, worldZ);
+            // Position du vertex (en coordonnées locales)
+            glm::vec3 position(localX, terrainHeight, localZ); // MODIFIÉ
 
             // Normal simplifiée (vers le haut pour le terrain)
             glm::vec3 normal(0.0f, 1.0f, 0.0f);
@@ -133,11 +137,15 @@ void LODMeshGenerator::generateDetailedMesh(
     // Génération des vertices
     for (int z = 0; z < height; z += params.vertexStep) {
         for (int x = 0; x < width; x += params.vertexStep) {
-            float worldX = chunkX * chunkSize + x * vertexSpacing;
-            float worldZ = chunkZ * chunkSize + z * vertexSpacing;
+
+            // --- CORRECTION COORDONNÉES ---
+            float localX = x * vertexSpacing; // NOUVEAU
+            float localZ = z * vertexSpacing; // NOUVEAU
+            // --- FIN CORRECTION ---
+
             float h = heightMap[z][x] * params.heightScale;
 
-            glm::vec3 position(worldX, h, worldZ);
+            glm::vec3 position(localX, h, localZ); // MODIFIÉ
             glm::vec3 normal = calculateNormal(heightMap, x, z, width, height);
             glm::vec2 texCoord(static_cast<float>(x) / width, static_cast<float>(z) / height);
 
@@ -182,23 +190,25 @@ void LODMeshGenerator::generateSimplifiedMeshImpl(LODMesh& mesh, const Simplifie
             float localX = x * step;
             float localZ = z * step;
 
-            // Position mondiale
-            float worldX = chunkData.position.x + localX;
-            float worldZ = chunkData.position.z + localZ;
+            // --- CORRECTION COORDONNÉES (Applicable ici aussi) ---
+            // float worldX = chunkData.position.x + localX; // ANCIEN
+            // float worldZ = chunkData.position.z + localZ; // ANCIEN
+            // --- FIN CORRECTION ---
+
 
             // Pour les LOD lointains, on utilise une approximation basée sur les données disponibles
             // Ici on pourrait utiliser une fonction de bruit ou interpoler depuis les données du chunk
             float height = chunkData.minHeight + 0.5f * (chunkData.maxHeight - chunkData.minHeight);
 
             // Essayer d'estimer la hauteur basée sur la position relative
-            float centerX = chunkData.position.x + chunkSize * 0.5f;
-            float centerZ = chunkData.position.z + chunkSize * 0.5f;
-            float distFromCenter = glm::distance(glm::vec2(worldX, worldZ), glm::vec2(centerX, centerZ));
+            float centerX = chunkSize * 0.5f; // ANCIEN: chunkData.position.x + ...
+            float centerZ = chunkSize * 0.5f; // ANCIEN: chunkData.position.z + ...
+            float distFromCenter = glm::distance(glm::vec2(localX, localZ), glm::vec2(centerX, centerZ));
             float heightVariation = (chunkData.maxHeight - chunkData.minHeight) * (1.0f - distFromCenter / (chunkSize * 0.7f));
 
             height = chunkData.minHeight + heightVariation;
 
-            glm::vec3 position(worldX, height, worldZ);
+            glm::vec3 position(localX, height, localZ); // MODIFIÉ
             glm::vec3 normal(0.0f, 1.0f, 0.0f);
             glm::vec2 texCoord(static_cast<float>(x) / (lodResolution - 1), static_cast<float>(z) / (lodResolution - 1));
 

@@ -16,33 +16,35 @@ namespace MonJeu {
 // ==============================================================================
 VoxelWorld::VoxelWorld(unsigned int seed, NihilEngine::PhysicsWorld* physicsWorld, WorldSaveManager* saveManager)
     : m_ProceduralGen(seed),
-      m_PhysicsWorld(physicsWorld), // Stocke le pointeur
-      m_SaveManager(saveManager)
-      // m_GrassTopEntities(5) // 5 biomes - COMMENTE: suppression du système d'entités d'herbe
+      m_PhysicsWorld(physicsWorld),
+      m_SaveManager(saveManager),
+      m_LODMeshGenerator()
 {
-    // Configuration du système LOD
+    // Configuration du système LOD (CORRIGÉE)
     NihilEngine::LODSettings lodSettings;
 
-    // Definissez votre distance d'affichage ici
-    float renderDistance = 256.0f; // ~16 chunks
+    // Définissez vos distances d'affichage
+    float highDetailDist = 96.0f;    // ~6 chunks (Maillage Voxel complet)
+    float mediumDetailDist = 192.0f; // ~12 chunks (Maillage simplifié 1/2)
+    float lowDetailDist = 384.0f;    // ~24 chunks (Maillage simplifié 1/4)
+    float displayDistance = 384.0f;  // Distance d'affichage max
 
     // *** LA CORRECTION EST ICI ***
-    // Force tous les niveaux de detail à être "HIGH_DETAIL"
-    // jusqu'à la distance d'affichage maximale.
-    lodSettings.displayDistance = renderDistance;
-    lodSettings.highDetailDistance = renderDistance;
-    lodSettings.mediumDetailDistance = renderDistance;
-    lodSettings.lowDetailDistance = renderDistance;
-    lodSettings.veryLowDetailDistance = renderDistance;
+    // Utiliser des distances échelonnées
+    lodSettings.displayDistance = displayDistance;
+    lodSettings.highDetailDistance = highDetailDist;
+    lodSettings.mediumDetailDistance = mediumDetailDist;
+    lodSettings.lowDetailDistance = lowDetailDist;
+    lodSettings.veryLowDetailDistance = displayDistance; // VERY_LOW = tout le reste
 
-    // La generation doit être un peu plus loin
-    lodSettings.generationDistance = renderDistance + 32.0f; // ex: 288.0f
-    lodSettings.calculationDistance = renderDistance + 64.0f; // ex: 320.0f
+    // La génération doit être un peu plus loin
+    lodSettings.generationDistance = displayDistance + 32.0f;
+    lodSettings.calculationDistance = displayDistance + 64.0f;
 
     m_LODSystem.setSettings(lodSettings);
 
-    m_ProgressiveUpdate.setUpdateRate(3);
-    m_ProgressiveUpdate.setMaxPendingUpdates(100);
+    m_ProgressiveUpdate.setUpdateRate(4); // Augmenter un peu le nombre de chunks traités par frame
+    m_ProgressiveUpdate.setMaxPendingUpdates(200);
 }
 
 // Génère de manière synchrone les chunks prioritaires autour d'une position (pour le spawn)
@@ -391,24 +393,72 @@ void VoxelWorld::UpdateLOD(const glm::vec3& cameraPosition, double deltaTime) {
 //
 void VoxelWorld::GenerateChunkLOD(int chunkX, int chunkZ, NihilEngine::ChunkLODLevel lodLevel) {
     uint64_t key = GetChunkKey(chunkX, chunkZ);
-
     m_ChunkLODLevels[key] = lodLevel;
 
     // Efface les anciens meshes pour ce chunk
     m_ChunkEntities.erase(key);
-    // for (auto& grassMap : m_GrassTopEntities) {
-    //     grassMap.erase(key);
-    // } - COMMENTE: suppression du système d'entités d'herbe
+    // (L'ancien système d'herbe est déjà commenté, c'est bien)
 
-    // Si le LOD est eLEVe, on genère les voxels complets.
+    // *** LA LOGIQUE DE LOD EST ICI ***
+
+    // 1. LOD ÉLEVÉ : Génération Voxel complète (ce que vous faites déjà)
     if (lodLevel == NihilEngine::ChunkLODLevel::HIGH_DETAIL) {
-        GenerateChunk(chunkX, chunkZ);
+        GenerateChunk(chunkX, chunkZ); // Cette fonction crée le maillage voxel
+        return; // Terminé pour ce chunk
     }
 
-    // *** LE BLOC 'ELSE' A eTe SUPPRIMe ***
-    // Il n'y a plus de code pour generer les LODs MEDIUM, LOW, ou VERY_LOW.
-    // Si (par miracle) cette fonction est appelee avec autre chose
-    // que HIGH_DETAIL, elle ne fera... rien.
+    // 2. LODs MOYENS/FAIBLES : Génération de maillage simplifié
+    // Pour les LODs simplifiés, nous n'avons pas besoin des données voxel complètes,
+    // juste de la carte de hauteur (heightmap) et des biomes.
+
+    // A. Obtenir les données du terrain (simulé, car nous n'avons pas les vrais voxels)
+    // Nous devons générer une heightmap locale pour ce chunk (16x16)
+    // NOTE : Idéalement, cela devrait venir d'un cache (ChunkDataCache)
+
+    std::vector<std::vector<float>> heightMap(Chunk::SIZE, std::vector<float>(Chunk::SIZE));
+    std::vector<std::vector<int>> biomeMap(Chunk::SIZE, std::vector<int>(Chunk::SIZE));
+
+    NihilEngine::TerrainGenerator& terrainGen = m_ProceduralGen.getTerrainGenerator();
+    NihilEngine::BiomeGenerator& biomeGen = m_ProceduralGen.getBiomeGenerator();
+
+    for (int z = 0; z < Chunk::SIZE; ++z) {
+        for (int x = 0; x < Chunk::SIZE; ++x) {
+            int worldX = chunkX * Chunk::SIZE + x;
+            int worldZ = chunkZ * Chunk::SIZE + z;
+
+            float height = terrainGen.getHeight(static_cast<float>(worldX), static_cast<float>(worldZ));
+            heightMap[z][x] = height;
+
+            NihilEngine::BiomeType biome = biomeGen.getBiome(static_cast<float>(worldX), static_cast<float>(worldZ), height);
+            biomeMap[z][x] = static_cast<int>(biome);
+        }
+    }
+
+    // B. Générer le maillage LOD simplifié
+    std::unique_ptr<NihilEngine::Mesh> lodMesh = m_LODMeshGenerator.generateMesh(
+        chunkX, chunkZ,
+        heightMap,
+        biomeMap,
+        lodLevel
+    );
+
+    if (lodMesh && lodMesh->GetIndexCount() > 0) {
+        // C. Créer l'entité
+        auto lodEntity = std::make_unique<NihilEngine::Entity>(
+            std::move(*lodMesh),
+            glm::vec3(chunkX * Chunk::SIZE, 0.0f, chunkZ * Chunk::SIZE)
+        );
+
+        // D. Appliquer la texture (l'atlas)
+        if (m_TextureAtlasID != 0) {
+            NihilEngine::Material lodMaterial;
+            lodMaterial.textureID = m_TextureAtlasID;
+            lodMaterial.color = glm::vec4(1.0f); // Le shader de LOD devrait utiliser les couleurs de vertex
+            lodEntity->SetMaterial(lodMaterial);
+        }
+
+        m_ChunkEntities[key] = std::move(lodEntity);
+    }
 }
 
 NihilEngine::ChunkLODLevel VoxelWorld::GetChunkLOD(int chunkX, int chunkZ, const glm::vec3& cameraPosition) const {
