@@ -88,10 +88,37 @@ void Game::InitializeGameObjects() {
     // 3. Joueur
     m_Player = std::make_unique<MonJeu::Player>(); //
 
+    // Générer la zone de spawn avant de placer le joueur
+    glm::vec3 tentativeSpawnPos = glm::vec3(0.5f, 0.0f, 0.5f); // Position temporaire pour calculer la hauteur
+    std::cout << "[Game] Generating spawn area to prevent falling through world..." << std::endl;
+    m_VoxelWorld->GenerateSpawnArea(tentativeSpawnPos, 3); // Générer 3 chunks de rayon autour du spawn
+    std::cout << "[Game] Spawn area ready, placing player..." << std::endl;
+
     // Spawn du joueur
     NihilEngine::TerrainGenerator& terrainGen = m_VoxelWorld->GetProceduralGenerator().getTerrainGenerator(); //
     float spawnHeight = terrainGen.getHeight(0.5f, 0.5f); //
-    glm::vec3 spawnPos = glm::vec3(0.5f, spawnHeight + Constants::PLAYER_HEIGHT, 0.5f); //
+
+    // Vérifier que la position de spawn n'est pas dans un bloc solide
+    glm::vec3 testSpawnPos = glm::vec3(0.5f, spawnHeight + Constants::PLAYER_HEIGHT, 0.5f);
+    NihilEngine::AABB playerBox;
+    playerBox.min = testSpawnPos - glm::vec3(Constants::PLAYER_WIDTH * 0.5f, 0.0f, Constants::PLAYER_WIDTH * 0.5f);
+    playerBox.max = testSpawnPos + glm::vec3(Constants::PLAYER_WIDTH * 0.5f, Constants::PLAYER_HEIGHT, Constants::PLAYER_WIDTH * 0.5f);
+
+    if (m_VoxelWorld->CheckCollision(playerBox)) {
+        std::cout << "[Game] WARNING: Spawn position is inside solid block, adjusting height..." << std::endl;
+        // Monter progressivement jusqu'à trouver un espace libre
+        for (float offset = 1.0f; offset <= 10.0f; offset += 1.0f) {
+            testSpawnPos.y = spawnHeight + Constants::PLAYER_HEIGHT + offset;
+            playerBox.min = testSpawnPos - glm::vec3(Constants::PLAYER_WIDTH * 0.5f, 0.0f, Constants::PLAYER_WIDTH * 0.5f);
+            playerBox.max = testSpawnPos + glm::vec3(Constants::PLAYER_WIDTH * 0.5f, Constants::PLAYER_HEIGHT, Constants::PLAYER_WIDTH * 0.5f);
+            if (!m_VoxelWorld->CheckCollision(playerBox)) {
+                std::cout << "[Game] Found safe spawn position at height " << testSpawnPos.y << std::endl;
+                break;
+            }
+        }
+    }
+
+    glm::vec3 spawnPos = testSpawnPos; //
     m_Player->SetPosition(spawnPos);
     m_Camera.SetPosition(spawnPos + glm::vec3(0.0f, Constants::EYE_HEIGHT, 0.0f)); //
 
@@ -151,6 +178,7 @@ void Game::ProcessInput(float deltaTime) {
     }
     if (NihilEngine::Input::IsKeyTriggered(GLFW_KEY_F3)) m_DebugOverlay->ToggleDebugInfo(); //
     if (NihilEngine::Input::IsKeyTriggered(GLFW_KEY_F4)) m_Player->ToggleRaycastVis(); //
+    if (NihilEngine::Input::IsKeyTriggered(GLFW_KEY_F6)) m_DebugOverlay->TogglePerformance(); //
     if (NihilEngine::Input::IsKeyTriggered(GLFW_KEY_F5)) {
         std::cout << "[Game] Sauvegarde manuelle du monde..." << std::endl;
         // La sauvegarde automatique se fait déjà dans UpdateDirtyChunks, mais on peut forcer
@@ -196,16 +224,32 @@ void Game::Update(float deltaTime) {
     NihilEngine::PerformanceMonitor::getInstance().startFrame(); //
 
     // Moteur
+    NihilEngine::PerformanceMonitor::getInstance().startSection("Physics");
     m_PhysicsWorld->update(deltaTime); //
+    NihilEngine::PerformanceMonitor::getInstance().endSection("Physics");
+
+    NihilEngine::PerformanceMonitor::getInstance().startSection("Environment");
     m_Environment->updateAtmosphere(deltaTime); //
+    NihilEngine::PerformanceMonitor::getInstance().endSection("Environment");
+
+    NihilEngine::PerformanceMonitor::getInstance().startSection("Audio");
     NihilEngine::AudioSystem::getInstance().setListenerPosition(m_Camera.GetPosition()); //
     NihilEngine::AudioSystem::getInstance().setListenerOrientation(m_Camera.GetForward(), m_Camera.GetUp()); //
     NihilEngine::AudioSystem::getInstance().update();
+    NihilEngine::PerformanceMonitor::getInstance().endSection("Audio");
 
     // Jeu
+    NihilEngine::PerformanceMonitor::getInstance().startSection("EntityController");
     m_EntityController->Update(deltaTime, *m_VoxelWorld); //
+    NihilEngine::PerformanceMonitor::getInstance().endSection("EntityController");
+
+    NihilEngine::PerformanceMonitor::getInstance().startSection("VoxelWorld_UpdateDirty");
     m_VoxelWorld->UpdateDirtyChunks(); //
+    NihilEngine::PerformanceMonitor::getInstance().endSection("VoxelWorld_UpdateDirty");
+
+    NihilEngine::PerformanceMonitor::getInstance().startSection("VoxelWorld_LOD");
     m_VoxelWorld->UpdateLOD(m_Camera.GetPosition(), deltaTime); //
+    NihilEngine::PerformanceMonitor::getInstance().endSection("VoxelWorld_LOD");
 
     // Sauvegarde périodique de l'état du joueur (toutes les 5 secondes)
     m_PlayerSaveTimer += deltaTime;
@@ -219,22 +263,28 @@ void Game::Update(float deltaTime) {
 }
 
 void Game::Render() {
+    NihilEngine::PerformanceMonitor::getInstance().startSection("Render_Clear");
     m_Renderer->Clear(); //
+    NihilEngine::PerformanceMonitor::getInstance().endSection("Render_Clear");
 
     // Config B brouillard (si activé)
     m_Renderer->EnableFog(false); //
     // ... (logique de brouillard) ...
 
     // Rendu 3D
+    NihilEngine::PerformanceMonitor::getInstance().startSection("Render_VoxelWorld");
     m_VoxelWorld->Render(*m_Renderer, m_Camera); //
-    m_EntityController->Render(*m_Renderer, m_Camera, true); //
+    NihilEngine::PerformanceMonitor::getInstance().endSection("Render_VoxelWorld");
 
     if (m_Player->IsRaycastVisible()) {
+        NihilEngine::PerformanceMonitor::getInstance().startSection("Render_Raycast");
         m_Player->RenderRaycast(*m_Renderer, m_Camera, *m_VoxelWorld); //
+        NihilEngine::PerformanceMonitor::getInstance().endSection("Render_Raycast");
     }
 
     // Rendu 2D (UI)
     glDisable(GL_DEPTH_TEST); //
+    NihilEngine::PerformanceMonitor::getInstance().startSection("Render_UI");
     m_Renderer->DrawCrosshair(m_Window->GetWidth(), m_Window->GetHeight()); //
 
     if (m_DebugOverlay) {  // Vérification de sécurité
@@ -242,9 +292,11 @@ void Game::Render() {
             m_FPS,
             static_cast<int>(m_VoxelWorld->GetChunkCount()),
             m_Camera.GetPosition(),
-            m_Player->GetPosition()
+            m_Player->GetPosition(),
+            NihilEngine::PerformanceMonitor::getInstance().getSections()
         );
     }
+    NihilEngine::PerformanceMonitor::getInstance().endSection("Render_UI");
     glEnable(GL_DEPTH_TEST); //
 
     m_Window->OnUpdate(); // Swap buffers

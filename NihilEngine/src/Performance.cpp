@@ -58,6 +58,7 @@ PerformanceMonitor& PerformanceMonitor::getInstance() {
 
 void PerformanceMonitor::startFrame() {
     m_LastFrameTime = glfwGetTime();
+    clearSections();
 }
 
 void PerformanceMonitor::endFrame() {
@@ -72,6 +73,25 @@ float PerformanceMonitor::getFPS() const {
 
 float PerformanceMonitor::getFrameTime() const {
     return m_FrameTime;
+}
+
+void PerformanceMonitor::startSection(const std::string& name) {
+    m_SectionStarts[name] = glfwGetTime();
+}
+
+void PerformanceMonitor::endSection(const std::string& name) {
+    auto it = m_SectionStarts.find(name);
+    if (it != m_SectionStarts.end()) {
+        double endTime = glfwGetTime();
+        double duration = endTime - it->second;
+        m_Sections.push_back({name, it->second, duration});
+        m_SectionStarts.erase(it);
+    }
+}
+
+void PerformanceMonitor::clearSections() {
+    m_Sections.clear();
+    m_SectionStarts.clear();
 }
 
 }

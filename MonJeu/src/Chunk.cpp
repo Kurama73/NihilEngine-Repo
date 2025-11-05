@@ -59,8 +59,7 @@ Constants::BiomeType Chunk::convertBiomeType(NihilEngine::BiomeType engineBiome)
 ChunkMeshes Chunk::CreateMeshes() const {
     std::vector<float> mainVertices;
     std::vector<unsigned int> mainIndices;
-    std::vector<std::vector<float>> grassTopVertices(5);
-    std::vector<std::vector<unsigned int>> grassTopIndices(5);
+    // grassTopVertices et grassTopIndices supprimés - herbe intégrée dans mainMesh
 
     for (int x = 0; x < SIZE; ++x) {
         for (int y = 0; y < SIZE; ++y) {
@@ -77,7 +76,7 @@ ChunkMeshes Chunk::CreateMeshes() const {
                 if (y + 1 < SIZE) visible[4] = !GetVoxel(x, y + 1, z).active;
                 if (y - 1 >= 0) visible[5] = !GetVoxel(x, y - 1, z).active;
 
-                AddVisibleFacesToMeshes(mainVertices, mainIndices, grassTopVertices, grassTopIndices, x, y, z, voxel.type, visible);
+                AddVisibleFacesToMeshes(mainVertices, mainIndices, x, y, z, voxel.type, visible);
             }
         }
     }
@@ -85,24 +84,12 @@ ChunkMeshes Chunk::CreateMeshes() const {
     ChunkMeshes meshes;
     meshes.mainMesh = std::make_unique<NihilEngine::Mesh>(mainVertices, mainIndices, std::vector<NihilEngine::VertexAttribute>{NihilEngine::VertexAttribute::Position, NihilEngine::VertexAttribute::Normal, NihilEngine::VertexAttribute::TexCoord});
 
-    for (int i = 0; i < 5; ++i) {
-        if (!grassTopVertices[i].empty()) {
-            meshes.grassTopMeshes.emplace_back(std::make_unique<NihilEngine::Mesh>(grassTopVertices[i], grassTopIndices[i],
-                std::vector<NihilEngine::VertexAttribute>{NihilEngine::VertexAttribute::Position, NihilEngine::VertexAttribute::Normal, NihilEngine::VertexAttribute::TexCoord}));
-        } else {
-            // ==================================================================
-            // CORRECTION : Créer un mesh vide (le constructeur du moteur le gère)
-            // ==================================================================
-            meshes.grassTopMeshes.emplace_back(std::make_unique<NihilEngine::Mesh>(std::vector<float>{}, std::vector<unsigned int>{},
-                std::vector<NihilEngine::VertexAttribute>{NihilEngine::VertexAttribute::Position, NihilEngine::VertexAttribute::Normal, NihilEngine::VertexAttribute::TexCoord}));
-        }
-    }
+    // grassTopMeshes supprimé - herbe intégrée dans mainMesh
     return meshes;
 }
 
 // Logique d'ajout de faces (extraite de VoxelWorld.cpp)
 void Chunk::AddVisibleFacesToMeshes(std::vector<float>& mainVertices, std::vector<unsigned int>& mainIndices,
-                                   std::vector<std::vector<float>>& grassTopVertices, std::vector<std::vector<unsigned int>>& grassTopIndices,
                                    int x, int y, int z, BlockType type, const bool visible[6]) const {
 
     // [Logique de AddVisibleFacesToMeshes - Inchangée]
@@ -212,12 +199,8 @@ void Chunk::AddVisibleFacesToMeshes(std::vector<float>& mainVertices, std::vecto
         };
         std::array<unsigned int, 6> faceIndices = {0, 1, 2, 2, 3, 0};
 
-        if (type == BlockType::Grass) {
-            unsigned int biomeVertexOffset = grassTopVertices[biomeIndex].size() / 8;
-            addFace(grassTopVertices[biomeIndex], grassTopIndices[biomeIndex], biomeVertexOffset, faceVertices, faceIndices);
-        } else {
-            addFace(mainVertices, mainIndices, mainVertexOffset, faceVertices, faceIndices);
-        }
+        // INTÉGRATION DE L'HERBE : Toujours ajouter au mainMesh maintenant
+        addFace(mainVertices, mainIndices, mainVertexOffset, faceVertices, faceIndices);
     }
 
     // Bottom face (-Y)

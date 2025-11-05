@@ -18,7 +18,7 @@ namespace MonJeu {
         }
     }
 
-    void GameDebugOverlay::RenderDebugInfo(float fps, int chunkCount, const glm::vec3& cameraPos, const glm::vec3& playerPos) {
+    void GameDebugOverlay::RenderDebugInfo(float fps, int chunkCount, const glm::vec3& cameraPos, const glm::vec3& playerPos, const std::vector<NihilEngine::PerformanceSection>& sections) {
         if (!showDebugInfo) return; // (showDebugInfo est hérité de DebugOverlay)
 
         // Désactive le test de profondeur pour que le texte s'affiche par-dessus la 3D
@@ -55,6 +55,18 @@ namespace MonJeu {
                      << "Player: (" << playerPos.x << ", " << playerPos.y << ", " << playerPos.z << ")";
             RenderText(ssPlayer.str(), 10.0f, y, glm::vec3(0.0f, 1.0f, 0.0f)); // Vert
             y += y_step;
+        }
+
+        if (showPerformance && !sections.empty()) {
+            RenderText("Performance (ms):", 10.0f, y, glm::vec3(1.0f, 0.5f, 1.0f)); // Magenta
+            y += y_step;
+
+            for (const auto& section : sections) {
+                std::stringstream ss;
+                ss << std::fixed << std::setprecision(3) << section.name << ": " << (section.duration * 1000.0);
+                RenderText(ss.str(), 20.0f, y, glm::vec3(0.8f, 0.8f, 0.8f)); // Gris clair
+                y += y_step;
+            }
         }
 
         // Affiche tout texte personnalisé ajouté via AddText()

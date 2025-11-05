@@ -53,6 +53,12 @@ public:
     void UpdateDirtyChunks();
     void UpdateLOD(const glm::vec3& cameraPosition, double deltaTime);
 
+    /**
+     * @brief Génère de manière synchrone les chunks prioritaires autour d'une position.
+     * Utilisé pour le spawn du joueur afin d'éviter la chute dans le vide.
+     */
+    void GenerateSpawnArea(const glm::vec3& position, int radiusChunks = 3);
+
     // --- Accesseurs ---
     NihilEngine::ProceduralGenerator& GetProceduralGenerator() { return m_ProceduralGen; }
     int GetChunkCount() const { return m_Chunks.size(); }
@@ -62,7 +68,7 @@ private:
     // État du jeu
     std::unordered_map<uint64_t, std::unique_ptr<Chunk>> m_Chunks;
     std::unordered_map<uint64_t, std::unique_ptr<NihilEngine::Entity>> m_ChunkEntities;
-    std::vector<std::unordered_map<uint64_t, std::unique_ptr<NihilEngine::Entity>>> m_GrassTopEntities;
+    // std::vector<std::unordered_map<uint64_t, std::unique_ptr<NihilEngine::Entity>>> m_GrassTopEntities; - COMMENTE: suppression du système d'entités d'herbe
     std::vector<uint64_t> m_DirtyChunks;
     GLuint m_TextureAtlasID = 0;
 

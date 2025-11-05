@@ -3,6 +3,7 @@
 #include <MonJeu/Constants.h>
 #include <NihilEngine/Renderer.h>
 #include <NihilEngine/Camera.h>
+#include <NihilEngine/Performance.h>
 #include <algorithm>
 #include <iostream>
 
@@ -16,8 +17,8 @@ namespace MonJeu {
 VoxelWorld::VoxelWorld(unsigned int seed, NihilEngine::PhysicsWorld* physicsWorld, WorldSaveManager* saveManager)
     : m_ProceduralGen(seed),
       m_PhysicsWorld(physicsWorld), // Stocke le pointeur
-      m_SaveManager(saveManager),
-      m_GrassTopEntities(5) // 5 biomes
+      m_SaveManager(saveManager)
+      // m_GrassTopEntities(5) // 5 biomes - COMMENTE: suppression du système d'entités d'herbe
 {
     // Configuration du système LOD
     NihilEngine::LODSettings lodSettings;
@@ -42,6 +43,74 @@ VoxelWorld::VoxelWorld(unsigned int seed, NihilEngine::PhysicsWorld* physicsWorl
 
     m_ProgressiveUpdate.setUpdateRate(3);
     m_ProgressiveUpdate.setMaxPendingUpdates(100);
+}
+
+// Génère de manière synchrone les chunks prioritaires autour d'une position (pour le spawn)
+void VoxelWorld::GenerateSpawnArea(const glm::vec3& position, int radiusChunks) {
+    std::cout << "[VoxelWorld] Generating spawn area around (" << position.x << ", " << position.z << ") with radius " << radiusChunks << " chunks..." << std::endl;
+
+    int centerChunkX, centerChunkZ;
+    WorldToChunk(static_cast<int>(position.x), static_cast<int>(position.z), centerChunkX, centerChunkZ);
+
+    // Générer les chunks dans l'ordre de priorité :
+    // 1. Chunk central (où le joueur se trouve)
+    // 2. Chunks dans le champ de vision (devant)
+    // 3. Chunks sur les côtés
+    // 4. Chunks derrière
+
+    std::vector<std::pair<int, int>> priorityOrder;
+
+    // Chunk central en premier
+    priorityOrder.emplace_back(0, 0);
+
+    // Ensuite les chunks dans un rayon croissant, en priorisant devant
+    for (int radius = 1; radius <= radiusChunks; ++radius) {
+        // Devant (négatif en Z dans le système de coordonnées du jeu)
+        for (int dz = -radius; dz <= -1; ++dz) {
+            for (int dx = -radius; dx <= radius; ++dx) {
+                if (abs(dx) == radius || abs(dz) == radius) {
+                    priorityOrder.emplace_back(dx, dz);
+                }
+            }
+        }
+
+        // Côtés (gauche et droite)
+        for (int dx = -radius; dx <= radius; ++dx) {
+            if (dx != 0) {
+                priorityOrder.emplace_back(dx, 0); // Même ligne Z
+            }
+        }
+
+        // Derrière (positif en Z)
+        for (int dz = 1; dz <= radius; ++dz) {
+            for (int dx = -radius; dx <= radius; ++dx) {
+                if (abs(dx) == radius || dz == radius) {
+                    priorityOrder.emplace_back(dx, dz);
+                }
+            }
+        }
+    }
+
+    // Générer les chunks dans l'ordre de priorité
+    for (const auto& [dx, dz] : priorityOrder) {
+        int chunkX = centerChunkX + dx;
+        int chunkZ = centerChunkZ + dz;
+
+        uint64_t key = GetChunkKey(chunkX, chunkZ);
+
+        // Vérifier si le chunk existe déjà
+        if (m_Chunks.find(key) != m_Chunks.end()) continue;
+
+        std::cout << "[VoxelWorld] Generating chunk (" << chunkX << ", " << chunkZ << ") for spawn area..." << std::endl;
+
+        // Générer le chunk de manière synchrone
+        GenerateChunkLOD(chunkX, chunkZ, NihilEngine::ChunkLODLevel::HIGH_DETAIL);
+
+        // Marquer comme généré au niveau HIGH_DETAIL
+        m_ChunkLODLevels[key] = NihilEngine::ChunkLODLevel::HIGH_DETAIL;
+    }
+
+    std::cout << "[VoxelWorld] Spawn area generation completed." << std::endl;
 }
 
 // Genère un chunk de voxels (Haut detail)
@@ -71,37 +140,37 @@ void VoxelWorld::GenerateChunk(int chunkX, int chunkZ) {
         glm::vec3(chunk->GetChunkX() * Chunk::SIZE, 0.0f, chunk->GetChunkZ() * Chunk::SIZE)
     );
 
-    // Entites d'herbe
-    std::vector<std::unique_ptr<NihilEngine::Entity>> grassTopEntities;
-    for (int i = 0; i < 5; ++i) {
-        auto grassTopEntity = std::make_unique<NihilEngine::Entity>(
-            std::move(*meshes.grassTopMeshes[i]),
-            glm::vec3(chunk->GetChunkX() * Chunk::SIZE, 0.0f, chunk->GetChunkZ() * Chunk::SIZE)
-        );
-        grassTopEntities.push_back(std::move(grassTopEntity));
-    }
+    // Entites d'herbe - SUPPRIMÉ : Trop lourd, à remplacer par une meilleure approche
+    // std::vector<std::unique_ptr<NihilEngine::Entity>> grassTopEntities;
+    // for (int i = 0; i < 5; ++i) {
+    //     auto grassTopEntity = std::make_unique<NihilEngine::Entity>(
+    //         std::move(*meshes.grassTopMeshes[i]),
+    //         glm::vec3(chunk->GetChunkX() * Chunk::SIZE, 0.0f, chunk->GetChunkZ() * Chunk::SIZE)
+    //     );
+    //     grassTopEntities.push_back(std::move(grassTopEntity));
+    // }
 
     // Appliquer les materiaux (après le move)
     if (m_TextureAtlasID != 0) {
         NihilEngine::Material mainMaterial;
         mainMaterial.textureID = m_TextureAtlasID;
-        mainMaterial.color = glm::vec4(1.0f, 1.0f, 1.0f, 1.0f);
+        mainMaterial.color = glm::vec4(1.0f, 1.0f, 1.0f, 1.0f); // Couleur blanche neutre
         mainEntity->SetMaterial(mainMaterial);
 
-        for (int i = 0; i < 5; ++i) {
-            NihilEngine::Material grassTopMaterial;
-            grassTopMaterial.textureID = m_TextureAtlasID;
-            const Constants::Biome& biomeData = Constants::BIOMES[i];
-            grassTopMaterial.color = glm::vec4(biomeData.grassColor, 1.0f);
-            grassTopEntities[i]->SetMaterial(grassTopMaterial);
-        }
+        // for (int i = 0; i < 5; ++i) {
+        //     NihilEngine::Material grassTopMaterial;
+        //     grassTopMaterial.textureID = m_TextureAtlasID;
+        //     // OPTIMISATION : Couleur par défaut unique pour toute l'herbe (au lieu de 5 couleurs de biome)
+        //     grassTopMaterial.color = glm::vec4(0.4f, 0.8f, 0.2f, 1.0f); // Vert d'herbe standard
+        //     grassTopEntities[i]->SetMaterial(grassTopMaterial);
+        // }
     }
 
     m_Chunks[key] = std::move(chunk);
     m_ChunkEntities[key] = std::move(mainEntity);
-    for (int i = 0; i < 5; ++i) {
-        m_GrassTopEntities[i][key] = std::move(grassTopEntities[i]);
-    }
+    // for (int i = 0; i < 5; ++i) {
+    //     m_GrassTopEntities[i][key] = std::move(grassTopEntities[i]);
+    // }
 }
 
 void VoxelWorld::UpdateDirtyChunks() {
@@ -115,9 +184,9 @@ void VoxelWorld::UpdateDirtyChunks() {
             auto meshes = chunk.CreateMeshes();
 
             m_ChunkEntities[key]->SetMesh(std::move(*meshes.mainMesh));
-            for (int i = 0; i < 5; ++i) {
-                m_GrassTopEntities[i][key]->SetMesh(std::move(*meshes.grassTopMeshes[i]));
-            }
+            // for (int i = 0; i < 5; ++i) {
+            //     m_GrassTopEntities[i][key]->SetMesh(std::move(*meshes.grassTopMeshes[i]));
+            // } - COMMENTE: suppression du système d'entités d'herbe
 
             if (m_TextureAtlasID != 0) {
                 NihilEngine::Material mainMaterial;
@@ -125,13 +194,13 @@ void VoxelWorld::UpdateDirtyChunks() {
                 mainMaterial.color = glm::vec4(1.0f, 1.0f, 1.0f, 1.0f);
                 m_ChunkEntities[key]->SetMaterial(mainMaterial);
 
-                for (int i = 0; i < 5; ++i) {
-                    NihilEngine::Material grassTopMaterial;
-                    grassTopMaterial.textureID = m_TextureAtlasID;
-                    const Constants::Biome& biomeData = Constants::BIOMES[i];
-                    grassTopMaterial.color = glm::vec4(biomeData.grassColor, 1.0f);
-                    m_GrassTopEntities[i][key]->SetMaterial(grassTopMaterial);
-                }
+                // for (int i = 0; i < 5; ++i) {
+                //     NihilEngine::Material grassTopMaterial;
+                //     grassTopMaterial.textureID = m_TextureAtlasID;
+                //     const Constants::Biome& biomeData = Constants::BIOMES[i];
+                //     grassTopMaterial.color = glm::vec4(biomeData.grassColor, 1.0f);
+                //     m_GrassTopEntities[i][key]->SetMaterial(grassTopMaterial);
+                // } - COMMENTE: suppression du système d'entités d'herbe
             }
 
             // Sauvegarde automatique du chunk modifie
@@ -150,6 +219,8 @@ void VoxelWorld::Render(NihilEngine::Renderer& renderer, const NihilEngine::Came
     float maxRenderDist = m_LODSystem.getSettings().displayDistance;
     float maxRenderDistSq = maxRenderDist * maxRenderDist;
 
+    // Mesurer le rendu des entités principales
+    NihilEngine::PerformanceMonitor::getInstance().startSection("Render_MainEntities");
     for (auto const& [key, val] : m_ChunkEntities)
     {
         glm::vec3 chunkPos = val->GetPosition() + glm::vec3(Chunk::SIZE * 0.5f, 0.0f, Chunk::SIZE * 0.5f);
@@ -159,18 +230,12 @@ void VoxelWorld::Render(NihilEngine::Renderer& renderer, const NihilEngine::Came
             renderer.DrawEntity(*val, camera);
         }
     }
+    NihilEngine::PerformanceMonitor::getInstance().endSection("Render_MainEntities");
 
-    for (int i = 0; i < 5; ++i) {
-        for (auto const& [key, val] : m_GrassTopEntities[i])
-        {
-            glm::vec3 chunkPos = val->GetPosition() + glm::vec3(Chunk::SIZE * 0.5f, 0.0f, Chunk::SIZE * 0.5f);
-            float distSq = glm::dot(camPos - chunkPos, camPos - chunkPos);
-
-            if (distSq <= maxRenderDistSq) {
-                renderer.DrawEntity(*val, camera);
-            }
-        }
-    }
+    // Mesurer le rendu des entités d'herbe
+    NihilEngine::PerformanceMonitor::getInstance().startSection("Render_GrassEntities");
+    // SUPPRIMÉ : Système d'entités d'herbe trop lourd - à remplacer par une meilleure approche
+    NihilEngine::PerformanceMonitor::getInstance().endSection("Render_GrassEntities");
 }
 
 bool VoxelWorld::Raycast(const glm::vec3& origin, const glm::vec3& direction, float maxDistance, NihilEngine::RaycastHit& result) {
@@ -306,9 +371,9 @@ void VoxelWorld::UpdateLOD(const glm::vec3& cameraPosition, double deltaTime) {
             m_ProgressiveUpdate.cancelChunkUpdate(chunkX, chunkZ);
             m_ChunkLODLevels.erase(key);
             m_Chunks.erase(key);
-            for (auto& grassMap : m_GrassTopEntities) {
-                grassMap.erase(key);
-            }
+            // for (auto& grassMap : m_GrassTopEntities) {
+            //     grassMap.erase(key);
+            // } - COMMENTE: suppression du système d'entités d'herbe
             it = m_ChunkEntities.erase(it);
         } else {
             ++it;
@@ -331,9 +396,9 @@ void VoxelWorld::GenerateChunkLOD(int chunkX, int chunkZ, NihilEngine::ChunkLODL
 
     // Efface les anciens meshes pour ce chunk
     m_ChunkEntities.erase(key);
-    for (auto& grassMap : m_GrassTopEntities) {
-        grassMap.erase(key);
-    }
+    // for (auto& grassMap : m_GrassTopEntities) {
+    //     grassMap.erase(key);
+    // } - COMMENTE: suppression du système d'entités d'herbe
 
     // Si le LOD est eLEVe, on genère les voxels complets.
     if (lodLevel == NihilEngine::ChunkLODLevel::HIGH_DETAIL) {

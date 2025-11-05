@@ -37,6 +37,10 @@ private:
 
     bool loadTextureFromFile(const std::string& filepath, TextureInfo& info);
     bool parseTextureAtlas(const std::string& atlasPath);
+
+    // === NOUVEAU : Colorisation de l'herbe ===
+    void ColorizeGrassTop(unsigned char* data, int width, int height, int channels);
+    // ========================================
 };
 
-}
+} // namespace NihilEngine

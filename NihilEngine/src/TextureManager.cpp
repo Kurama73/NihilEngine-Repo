@@ -2,6 +2,7 @@
 #include <iostream>
 #include <filesystem>
 #include <vector>
+#include <glm/glm.hpp>
 #define STB_IMAGE_IMPLEMENTATION
 #include <stb_image.h>
 
@@ -77,6 +78,43 @@ bool TextureManager::loadTextureFromFile(const std::string& filepath, TextureInf
 
     std::cout << "Successfully loaded texture: " << filepath << " (" << width << "x" << height << ", " << channels << " channels)" << std::endl;
 
+    // --- NOUVEAU : Colorisation pour grass_block_top ---
+    std::filesystem::path path(filepath);
+    std::string filename = path.filename().string();
+
+    if (filename == "grass_block_top.png") {
+        std::cout << "   [Colorize] Applying Minecraft grass tint to grass_block_top.png" << std::endl;
+
+        // Forcer 3 ou 4 canaux pour la colorisation
+        int targetChannels = (channels == 4) ? 4 : 3;
+        unsigned char* colorizedData = data;
+
+        if (channels != targetChannels) {
+            colorizedData = new unsigned char[width * height * targetChannels];
+            if (channels == 1) {
+                for (int i = 0; i < width * height; ++i) {
+                    colorizedData[i * targetChannels] = data[i];
+                    colorizedData[i * targetChannels + 1] = data[i];
+                    colorizedData[i * targetChannels + 2] = data[i];
+                    if (targetChannels == 4) colorizedData[i * targetChannels + 3] = 255;
+                }
+            } else if (channels == 3 && targetChannels == 4) {
+                for (int i = 0; i < width * height; ++i) {
+                    colorizedData[i * 4] = data[i * 3];
+                    colorizedData[i * 4 + 1] = data[i * 3 + 1];
+                    colorizedData[i * 4 + 2] = data[i * 3 + 2];
+                    colorizedData[i * 4 + 3] = 255;
+                }
+            }
+            stbi_image_free(data);
+            data = colorizedData;
+            channels = targetChannels;
+        }
+
+        ColorizeGrassTop(data, width, height, channels);
+    }
+    // --- FIN DE LA MODIFICATION ---
+
     GLenum format = (channels == 4) ? GL_RGBA : GL_RGB;
 
     glGenTextures(1, &info.id);
@@ -90,9 +128,7 @@ bool TextureManager::loadTextureFromFile(const std::string& filepath, TextureInf
     glTexImage2D(GL_TEXTURE_2D, 0, format, width, height, 0, format, GL_UNSIGNED_BYTE, data);
     glGenerateMipmap(GL_TEXTURE_2D);
 
-    info.data = data;
-    // stbi_image_free(data); // Keep data for atlas creation
-
+    info.data = data;  // Gardé pour l'atlas
     info.uvMin = glm::vec2(0.0f, 0.0f);
     info.uvMax = glm::vec2(1.0f, 1.0f);
     info.width = width;
@@ -178,8 +214,44 @@ void TextureManager::createFallbackTextures() {
     std::cout << "   [OK] " << fallbackTextures.size() << " textures de fallback creees" << std::endl;
 }
 
+void TextureManager::ColorizeGrassTop(unsigned char* data, int width, int height, int channels) {
+    // Couleur cible : vert herbe Minecraft classique
+    glm::vec3 grassColor(93.0f / 255.0f, 129.0f / 255.0f, 49.0f / 255.0f);
+
+    for (int i = 0; i < width * height; ++i) {
+        int idx = i * channels;
+
+        // Lire la luminance (moyenne des canaux RGB, ou canal unique si grayscale)
+        float luminance = 0.0f;
+        if (channels == 1) {
+            luminance = data[idx] / 255.0f;
+        } else if (channels == 3 || channels == 4) {
+            luminance = (data[idx] + data[idx + 1] + data[idx + 2]) / (3.0f * 255.0f);
+        }
+
+        // Appliquer la teinte verte
+        unsigned char r = static_cast<unsigned char>(grassColor.r * luminance * 255.0f);
+        unsigned char g = static_cast<unsigned char>(grassColor.g * luminance * 255.0f);
+        unsigned char b = static_cast<unsigned char>(grassColor.b * luminance * 255.0f);
+
+        data[idx + 0] = r;
+        data[idx + 1] = g;
+        data[idx + 2] = b;
+
+        if (channels == 4) {
+            data[idx + 3] = data[idx + 3]; // garder alpha
+        } else if (channels == 3) {
+            // pas d'alpha
+        } else if (channels == 1) {
+            // on étend à 3 canaux
+            data[idx + 1] = g;
+            data[idx + 2] = b;
+        }
+    }
+}
+
 GLuint TextureManager::createTextureAtlas() {
-    // Create a simple 2x4 texture atlas (8 textures)
+    // Atlas simple 2x4 (8 textures) comme avant
     const int ATLAS_WIDTH = 128;  // 4 textures * 32px each
     const int ATLAS_HEIGHT = 64;  // 2 rows * 32px each
     const int TEX_SIZE = 32;
@@ -189,7 +261,7 @@ GLuint TextureManager::createTextureAtlas() {
     // Define texture positions in atlas (normalized coordinates)
     struct AtlasEntry {
         std::string textureName;
-        int x, y; // Position in atlas (0-3 for x, 0-1 for y)
+        int x, y; // Position in atlas (0-3 for x, 0-3 for y)
     };
 
     std::vector<AtlasEntry> atlasLayout = {

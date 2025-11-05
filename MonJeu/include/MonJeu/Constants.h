@@ -9,6 +9,7 @@ namespace MonJeu {
         constexpr float GRAVITY = 40.0f;
         constexpr float JUMP_FORCE = 10.0f;
         constexpr float PLAYER_HEIGHT = 1.8f;        //
+        constexpr float PLAYER_WIDTH = 0.6f;         // Largeur du joueur pour les collisions
         constexpr float MOUSE_SENSITIVITY = 0.1f;    //
         constexpr float MAX_PITCH = 89.0f;
         constexpr float EYE_HEIGHT = 0.9f;           // (Hauteur des yeux par rapport au centre du joueur)

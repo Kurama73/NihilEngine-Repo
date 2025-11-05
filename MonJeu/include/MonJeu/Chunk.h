@@ -20,10 +20,10 @@ struct Voxel {
 };
 
 // Contient les meshes nécessaires pour un chunk
-// (optimisé pour l'herbe colorée par biome)
+// (herbe intégrée directement dans le mainMesh)
 struct ChunkMeshes {
     std::unique_ptr<NihilEngine::Mesh> mainMesh;
-    std::vector<std::unique_ptr<NihilEngine::Mesh>> grassTopMeshes;
+    // grassTopMeshes supprimé - herbe intégrée dans mainMesh
 };
 
 /**
@@ -71,8 +71,6 @@ private:
     void AddVisibleFacesToMeshes(
         std::vector<float>& mainVertices,
         std::vector<unsigned int>& mainIndices,
-        std::vector<std::vector<float>>& grassTopVertices,
-        std::vector<std::vector<unsigned int>>& grassTopIndices,
         int x, int y, int z, BlockType type, const bool visible[6]
     ) const;
 

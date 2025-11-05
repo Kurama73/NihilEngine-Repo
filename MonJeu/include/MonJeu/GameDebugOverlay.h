@@ -2,6 +2,7 @@
 #pragma once
 #include <NihilEngine/DebugOverlay.h>
 #include <NihilEngine/TextRenderer.h> //
+#include <NihilEngine/Performance.h>
 #include <glm/glm.hpp>
 #include <string>
 #include <vector>
@@ -20,12 +21,13 @@ public:
     /**
      * @brief Fonction principale de rendu appelée par la boucle de jeu.
      */
-    void RenderDebugInfo(float fps, int chunkCount, const glm::vec3& cameraPos, const glm::vec3& playerPos) override; //
+    void RenderDebugInfo(float fps, int chunkCount, const glm::vec3& cameraPos, const glm::vec3& playerPos, const std::vector<NihilEngine::PerformanceSection>& sections = {}); //
 
     // Toggles spécifiques au jeu
     void ToggleFPS() { showFPS = !showFPS; }
     void TogglePositions() { showPositions = !showPositions; }
     void ToggleChunkInfo() { showChunkInfo = !showChunkInfo; }
+    void TogglePerformance() { showPerformance = !showPerformance; }
 
     /**
      * @brief Ajoute du texte personnalisé à afficher pour la frame suivante.
@@ -41,6 +43,7 @@ private:
     bool showFPS = true;
     bool showPositions = true;
     bool showChunkInfo = true;
+    bool showPerformance = true;
 
     // Stockage temporaire pour le texte personnalisé
     struct CustomText {
