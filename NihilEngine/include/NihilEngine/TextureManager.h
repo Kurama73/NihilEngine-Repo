@@ -29,6 +29,7 @@ private:
         glm::vec2 uvMax;
         int width, height, channels;
         unsigned char* data;
+        bool isFallback;
     };
 
     std::unordered_map<std::string, TextureInfo> m_Textures;

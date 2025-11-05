@@ -1,4 +1,4 @@
-// Mesh.cpp
+// NihilEngine/src/Mesh.cpp
 #include <NihilEngine/Mesh.h>
 #include <glad/glad.h>
 #include <iostream>
@@ -14,11 +14,14 @@ namespace NihilEngine {
             const std::vector<VertexAttribute>& attributes)
         : m_IndexCount(static_cast<int>(indices.size())) {
 
+        // *** CORRECTION AJOUTÉE : GESTION DES MESH VIDES ***
+        // Si les vertices ou indices sont vides, ne pas essayer de créer de buffers OpenGL.
         if (vertices.empty() || indices.empty()) {
             m_VAO = m_VBO = m_EBO = 0;
             m_IndexCount = 0;
-            return;
+            return; // Quitte le constructeur
         }
+        // *** FIN DE LA CORRECTION ***
 
         // Debug/sanity check: verify vertex buffer matches declared attributes
         int floatsPerVertex = 0;
@@ -83,7 +86,7 @@ namespace NihilEngine {
     }
 
     Mesh::~Mesh() {
-        if (m_VAO) {
+        if (m_VAO != 0) { // Ne pas essayer de supprimer si m_VAO est 0 (mesh vide)
             glDeleteVertexArrays(1, &m_VAO);
             glDeleteBuffers(1, &m_VBO);
             glDeleteBuffers(1, &m_EBO);
@@ -98,7 +101,7 @@ namespace NihilEngine {
 
     Mesh& Mesh::operator=(Mesh&& other) noexcept {
         if (this != &other) {
-            if (m_VAO) {
+            if (m_VAO != 0) {
                 glDeleteVertexArrays(1, &m_VAO);
                 glDeleteBuffers(1, &m_VBO);
                 glDeleteBuffers(1, &m_EBO);
@@ -116,10 +119,21 @@ namespace NihilEngine {
 
     void Mesh::Bind() const   { glBindVertexArray(m_VAO); }
     void Mesh::Unbind() const { glBindVertexArray(0); }
-    void Mesh::Draw() const   { glDrawElements(GL_TRIANGLES, m_IndexCount, GL_UNSIGNED_INT, 0); }
+
+    void Mesh::Draw() const   {
+        // Sécurité pour ne pas dessiner un mesh vide
+        if (m_VAO != 0 && m_IndexCount > 0) {
+            glDrawElements(GL_TRIANGLES, m_IndexCount, GL_UNSIGNED_INT, 0);
+        }
+    }
+
+    // *** CORRECTION AJOUTÉE : Implémentation ***
+    int Mesh::GetIndexCount() const {
+        return m_IndexCount;
+    }
 
     // ============================================================
-    // FACTORY METHODS
+    // FACTORY METHODS (Inchangés)
     // ============================================================
 
     Mesh Mesh::CreateCube(float size) {
@@ -188,4 +202,4 @@ namespace NihilEngine {
         return Mesh(vertices, indices, attrs);
     }
 
-}
+} // namespace NihilEngine

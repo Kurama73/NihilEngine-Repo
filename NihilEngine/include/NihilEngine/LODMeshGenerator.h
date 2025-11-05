@@ -61,6 +61,13 @@ private:
                              const std::vector<std::vector<int>>& biomeMap,
                              const LODParams& params);
 
+    // Génération de mesh basé sur les voxels (pour LOD moyens et élevés)
+    void generateVoxelBasedMesh(LODMesh& mesh,
+                               int chunkX, int chunkZ,
+                               const std::vector<std::vector<float>>& heightMap,
+                               const std::vector<std::vector<int>>& biomeMap,
+                               const LODParams& params);
+
     // Génération de mesh simplifié
     void generateSimplifiedMeshImpl(LODMesh& mesh, const SimplifiedChunkData& chunkData);
 

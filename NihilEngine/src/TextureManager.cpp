@@ -13,7 +13,11 @@ TextureManager::~TextureManager() {
     for (auto& pair : m_Textures) {
         glDeleteTextures(1, &pair.second.id);
         if (pair.second.data) {
-            stbi_image_free(pair.second.data);
+            if (pair.second.isFallback) {
+                delete[] pair.second.data;
+            } else {
+                stbi_image_free(pair.second.data);
+            }
         }
     }
 }
@@ -26,7 +30,6 @@ TextureManager& TextureManager::getInstance() {
 bool TextureManager::loadMinecraftTexturePack(const std::string& packPath) {
     m_PackPath = packPath;
     std::filesystem::path assetsPath = std::filesystem::path(packPath) / "assets" / "minecraft" / "textures";
-
     if (!std::filesystem::exists(assetsPath)) {
         std::cerr << "Minecraft texture pack path not found: " << assetsPath << std::endl;
         return false;
@@ -44,6 +47,8 @@ bool TextureManager::loadMinecraftTexturePack(const std::string& packPath) {
         "block/water_still.png"
     };
 
+    bool loadedAny = false; // <-- AJOUTEZ CECI
+
     for (const auto& texPath : blockTextures) {
         std::filesystem::path fullPath = assetsPath / texPath;
         if (std::filesystem::exists(fullPath)) {
@@ -52,11 +57,12 @@ bool TextureManager::loadMinecraftTexturePack(const std::string& packPath) {
                 std::string name = texPath.substr(0, texPath.find_last_of('.'));
                 m_Textures[name] = info;
                 std::cout << "Loaded texture: " << name << std::endl;
+                loadedAny = true;
             }
         }
     }
 
-    return true;
+    return loadedAny;
 }
 
 bool TextureManager::loadTextureFromFile(const std::string& filepath, TextureInfo& info) {
@@ -65,9 +71,11 @@ bool TextureManager::loadTextureFromFile(const std::string& filepath, TextureInf
     unsigned char* data = stbi_load(filepath.c_str(), &width, &height, &channels, 0);
 
     if (!data) {
-        std::cerr << "Failed to load texture: " << filepath << std::endl;
+        std::cerr << "Failed to load texture: " << filepath << " - STB Error: " << stbi_failure_reason() << std::endl;
         return false;
     }
+
+    std::cout << "Successfully loaded texture: " << filepath << " (" << width << "x" << height << ", " << channels << " channels)" << std::endl;
 
     GLenum format = (channels == 4) ? GL_RGBA : GL_RGB;
 
@@ -90,6 +98,7 @@ bool TextureManager::loadTextureFromFile(const std::string& filepath, TextureInf
     info.width = width;
     info.height = height;
     info.channels = channels;
+    info.isFallback = false;
 
     return true;
 }
@@ -139,6 +148,8 @@ void TextureManager::createFallbackTextures() {
         info.height = 16;
         info.uvMin = glm::vec2(0.0f, 0.0f);
         info.uvMax = glm::vec2(1.0f, 1.0f);
+        info.channels = 4;
+        info.isFallback = true;
 
         // Create a simple colored texture
         std::vector<unsigned char> pixels(16 * 16 * 4);
@@ -148,6 +159,10 @@ void TextureManager::createFallbackTextures() {
             pixels[i * 4 + 2] = static_cast<unsigned char>(fallback.color.b * 255);
             pixels[i * 4 + 3] = 255; // Alpha
         }
+
+        // Allocate data for atlas creation
+        info.data = new unsigned char[16 * 16 * 4];
+        std::memcpy(info.data, pixels.data(), 16 * 16 * 4);
 
         glGenTextures(1, &info.id);
         glBindTexture(GL_TEXTURE_2D, info.id);
@@ -196,6 +211,12 @@ GLuint TextureManager::createTextureAtlas() {
             int atlasX = entry.x * TEX_SIZE;
             int atlasY = entry.y * TEX_SIZE;
 
+            // Check if texture data is valid
+            if (!texInfo.data) {
+                std::cerr << "Warning: Texture '" << entry.textureName << "' has no data, skipping in atlas" << std::endl;
+                continue;
+            }
+
             // For fallback textures (16x16), scale up to 32x32
             for (int y = 0; y < TEX_SIZE; ++y) {
                 for (int x = 0; x < TEX_SIZE; ++x) {
@@ -206,6 +227,15 @@ GLuint TextureManager::createTextureAtlas() {
 
                     // Read pixel from source texture data
                     int srcIndex = (srcY * texInfo.width + srcX) * texInfo.channels;
+                    if (srcIndex + texInfo.channels - 1 >= texInfo.width * texInfo.height * texInfo.channels) {
+                        // Out of bounds, use default color
+                        atlasPixels[atlasIndex + 0] = 255;
+                        atlasPixels[atlasIndex + 1] = 0;
+                        atlasPixels[atlasIndex + 2] = 255;
+                        atlasPixels[atlasIndex + 3] = 255;
+                        continue;
+                    }
+
                     unsigned char r = texInfo.data[srcIndex];
                     unsigned char g = texInfo.data[srcIndex + 1];
                     unsigned char b = texInfo.data[srcIndex + 2];
@@ -217,6 +247,8 @@ GLuint TextureManager::createTextureAtlas() {
                     atlasPixels[atlasIndex + 3] = a;
                 }
             }
+        } else {
+            std::cerr << "Warning: Texture '" << entry.textureName << "' not found for atlas" << std::endl;
         }
     }
 

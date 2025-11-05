@@ -17,7 +17,13 @@ std::unique_ptr<NihilEngine::Mesh> LODMeshGenerator::generateMesh(
     LODMesh lodMesh;
     LODParams params = getLODParams(lodLevel);
 
-    generateDetailedMesh(lodMesh, chunkX, chunkZ, heightMap, biomeMap, params);
+    // Pour les LOD moyens et élevés, utiliser la génération voxel-based
+    if (lodLevel == ChunkLODLevel::HIGH_DETAIL || lodLevel == ChunkLODLevel::MEDIUM_DETAIL) {
+        generateVoxelBasedMesh(lodMesh, chunkX, chunkZ, heightMap, biomeMap, params);
+    } else {
+        // Pour les LOD faibles, utiliser la génération simplifiée mais améliorée
+        generateDetailedMesh(lodMesh, chunkX, chunkZ, heightMap, biomeMap, params);
+    }
 
     return convertToMesh(lodMesh);
 }
@@ -33,15 +39,79 @@ std::unique_ptr<NihilEngine::Mesh> LODMeshGenerator::generateSimplifiedMesh(
 LODMeshGenerator::LODParams LODMeshGenerator::getLODParams(ChunkLODLevel level) const {
     switch (level) {
         case ChunkLODLevel::HIGH_DETAIL:
-            return {1, 1.0f, true};
+            return {1, 1.0f, true};  // Résolution complète
         case ChunkLODLevel::MEDIUM_DETAIL:
-            return {2, 1.0f, true};
+            return {2, 1.0f, true}; // Résolution 1/2
         case ChunkLODLevel::LOW_DETAIL:
-            return {4, 0.8f, false};
+            return {4, 0.8f, false}; // Résolution 1/4
         case ChunkLODLevel::VERY_LOW_DETAIL:
-            return {8, 0.5f, false};
+            return {8, 0.5f, false}; // Résolution 1/8
         default:
             return {4, 1.0f, false};
+    }
+}
+
+void LODMeshGenerator::generateVoxelBasedMesh(
+    LODMesh& mesh,
+    int chunkX, int chunkZ,
+    const std::vector<std::vector<float>>& heightMap,
+    const std::vector<std::vector<int>>& biomeMap,
+    const LODParams& params
+) {
+    const int chunkSize = 16;
+    const float voxelSize = 1.0f;
+
+    int width = heightMap.empty() ? 0 : static_cast<int>(heightMap[0].size());
+    int height = static_cast<int>(heightMap.size());
+
+    if (width == 0 || height == 0) return;
+
+    // Pour les LOD, on réduit la résolution en sautant des voxels
+    int step = params.vertexStep;
+
+    // Génération des vertices - échantillonnage du terrain réel
+    for (int z = 0; z < height; z += step) {
+        for (int x = 0; x < width; x += step) {
+            float worldX = chunkX * chunkSize + x;
+            float worldZ = chunkZ * chunkSize + z;
+            float terrainHeight = heightMap[z][x];
+
+            // Position du vertex
+            glm::vec3 position(worldX, terrainHeight, worldZ);
+
+            // Normal simplifiée (vers le haut pour le terrain)
+            glm::vec3 normal(0.0f, 1.0f, 0.0f);
+
+            // Coordonnées de texture
+            glm::vec2 texCoord(
+                static_cast<float>(x) / (width - 1),
+                static_cast<float>(z) / (height - 1)
+            );
+
+            // Couleur basée sur le biome
+            int biomeId = biomeMap[z][x];
+            glm::vec3 color = getBiomeColor(biomeId);
+
+            addVertex(mesh, position, normal, texCoord, color);
+        }
+    }
+
+    // Génération des triangles
+    int gridWidth = (width + step - 1) / step;  // Nombre de points en X
+    int gridHeight = (height + step - 1) / step; // Nombre de points en Z
+
+    for (int z = 0; z < gridHeight - 1; ++z) {
+        for (int x = 0; x < gridWidth - 1; ++x) {
+            unsigned int topLeft = z * gridWidth + x;
+            unsigned int topRight = topLeft + 1;
+            unsigned int bottomLeft = (z + 1) * gridWidth + x;
+            unsigned int bottomRight = bottomLeft + 1;
+
+            // Premier triangle
+            addTriangle(mesh, topLeft, bottomLeft, topRight);
+            // Deuxième triangle
+            addTriangle(mesh, topRight, bottomLeft, bottomRight);
+        }
     }
 }
 
@@ -98,42 +168,53 @@ void LODMeshGenerator::generateDetailedMesh(
 }
 
 void LODMeshGenerator::generateSimplifiedMeshImpl(LODMesh& mesh, const SimplifiedChunkData& chunkData) {
-    // Crée un mesh simplifié avec une grille 3x3 qui suit les variations de hauteur
-    const float size = 16.0f; // Taille du chunk
-    const int gridSize = 3;   // Grille 3x3 pour capturer les variations de hauteur
-    const float cellSize = size / (gridSize - 1);
+    // Au lieu de créer un plan plat, on utilise les données réelles du chunk
+    // pour créer un mesh qui représente la topographie réelle
 
-    glm::vec3 color = chunkData.color;
+    const int chunkSize = 16;
+    const int lodResolution = 4; // 4x4 échantillonnage pour LOD lointain
+    const float step = static_cast<float>(chunkSize) / lodResolution;
 
-    // Génère une grille 3x3 avec interpolation de hauteur
-    for (int z = 0; z < gridSize; ++z) {
-        for (int x = 0; x < gridSize; ++x) {
-            float xOffset = x * cellSize;
-            float zOffset = z * cellSize;
+    // Échantillonnage du terrain à intervalles réguliers
+    for (int z = 0; z < lodResolution; ++z) {
+        for (int x = 0; x < lodResolution; ++x) {
+            // Position dans le chunk
+            float localX = x * step;
+            float localZ = z * step;
 
-            // Interpolation de hauteur basée sur les données du chunk
-            float t = static_cast<float>(x * gridSize + z) / static_cast<float>(gridSize * gridSize - 1);
-            float height = chunkData.minHeight + t * (chunkData.maxHeight - chunkData.minHeight);
+            // Position mondiale
+            float worldX = chunkData.position.x + localX;
+            float worldZ = chunkData.position.z + localZ;
 
-            glm::vec3 position = chunkData.position + glm::vec3(xOffset, height, zOffset);
-            glm::vec3 normal(0, 1, 0); // Normal simplifiée vers le haut
-            glm::vec2 texCoord(static_cast<float>(x) / (gridSize - 1), static_cast<float>(z) / (gridSize - 1));
+            // Pour les LOD lointains, on utilise une approximation basée sur les données disponibles
+            // Ici on pourrait utiliser une fonction de bruit ou interpoler depuis les données du chunk
+            float height = chunkData.minHeight + 0.5f * (chunkData.maxHeight - chunkData.minHeight);
 
-            addVertex(mesh, position, normal, texCoord, color);
+            // Essayer d'estimer la hauteur basée sur la position relative
+            float centerX = chunkData.position.x + chunkSize * 0.5f;
+            float centerZ = chunkData.position.z + chunkSize * 0.5f;
+            float distFromCenter = glm::distance(glm::vec2(worldX, worldZ), glm::vec2(centerX, centerZ));
+            float heightVariation = (chunkData.maxHeight - chunkData.minHeight) * (1.0f - distFromCenter / (chunkSize * 0.7f));
+
+            height = chunkData.minHeight + heightVariation;
+
+            glm::vec3 position(worldX, height, worldZ);
+            glm::vec3 normal(0.0f, 1.0f, 0.0f);
+            glm::vec2 texCoord(static_cast<float>(x) / (lodResolution - 1), static_cast<float>(z) / (lodResolution - 1));
+
+            addVertex(mesh, position, normal, texCoord, chunkData.color);
         }
     }
 
-    // Génère les triangles pour la grille
-    for (int z = 0; z < gridSize - 1; ++z) {
-        for (int x = 0; x < gridSize - 1; ++x) {
-            unsigned int topLeft = z * gridSize + x;
+    // Génération des triangles
+    for (int z = 0; z < lodResolution - 1; ++z) {
+        for (int x = 0; x < lodResolution - 1; ++x) {
+            unsigned int topLeft = z * lodResolution + x;
             unsigned int topRight = topLeft + 1;
-            unsigned int bottomLeft = (z + 1) * gridSize + x;
+            unsigned int bottomLeft = (z + 1) * lodResolution + x;
             unsigned int bottomRight = bottomLeft + 1;
 
-            // Premier triangle
             addTriangle(mesh, topLeft, bottomLeft, topRight);
-            // Deuxième triangle
             addTriangle(mesh, topRight, bottomLeft, bottomRight);
         }
     }

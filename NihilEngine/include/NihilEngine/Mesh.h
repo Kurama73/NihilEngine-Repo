@@ -1,3 +1,4 @@
+// NihilEngine/include/NihilEngine/Mesh.h
 #pragma once
 
 #include <vector>
@@ -23,6 +24,13 @@ namespace NihilEngine {
         void Bind() const;
         void Unbind() const;
         void Draw() const;
+
+        // *** CORRECTION AJOUTÉE ***
+        /**
+         * @brief Renvoie le nombre d'indices dans ce mesh.
+         * @return Le nombre d'indices (int).
+         */
+        int GetIndexCount() const;
 
         static Mesh CreateCube(float size = 1.0f);
         static Mesh CreateTriangle(float size = 1.0f);

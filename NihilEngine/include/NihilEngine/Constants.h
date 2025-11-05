@@ -8,7 +8,7 @@ namespace NihilEngine {
         constexpr float DEFAULT_NEAR_PLANE = 0.1f;
         constexpr float DEFAULT_FAR_PLANE = 100.0f;
         constexpr float MAX_PITCH = 89.0f;
-        constexpr float FORWARD_Z_DEFAULT = -1.0f;
+        constexpr float FORWARD_Z_DEFAULT = 1.0f;
 
         // Renderer constants
         constexpr float LIGHT_POS_X = 20.0f;

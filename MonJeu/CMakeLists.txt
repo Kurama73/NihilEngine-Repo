@@ -3,6 +3,11 @@ add_library(MonJeuLib
     src/VoxelWorld.cpp
     src/Player.cpp
     src/GameDebugOverlay.cpp
+    src/Game.cpp
+    src/Chunk.cpp
+    src/ChunkSerializer.cpp
+    src/WorldSaveManager.cpp
+    src/SaveManager.cpp
 )
 
 set_target_properties(MonJeuLib PROPERTIES CXX_STANDARD 17 CXX_STANDARD_REQUIRED YES)
