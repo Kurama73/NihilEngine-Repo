@@ -9,10 +9,12 @@ namespace NihilEngine {
 
     Window::Window(int width, int height, const char* title, bool fullscreen)
         : m_Width(width), m_Height(height), m_Fullscreen(fullscreen) {
+        std::cout << "[Window] Initializing GLFW..." << std::endl;
         if (!glfwInit()) {
-            std::cerr << "Erreur: Init GLFW" << std::endl;
+            std::cout << "[Window ERROR] Failed to initialize GLFW" << std::endl;
             return;
         }
+        std::cout << "[Window] GLFW initialized successfully" << std::endl;
 
         GLFWmonitor* monitor = glfwGetPrimaryMonitor();
         const GLFWvidmode* mode = glfwGetVideoMode(monitor);
@@ -24,19 +26,22 @@ namespace NihilEngine {
         }
 
         if (!m_Window) {
-            std::cerr << "Erreur: Création fenêtre GLFW" << std::endl;
+            std::cout << "[Window ERROR] Failed to create GLFW window" << std::endl;
             glfwTerminate();
             return;
         }
+        std::cout << "[Window] GLFW window created successfully" << std::endl;
 
         glfwMakeContextCurrent(m_Window);
         glfwSetWindowUserPointer(m_Window, this);
         glfwSetFramebufferSizeCallback(m_Window, FramebufferSizeCallback);
 
         if (!gladLoadGLLoader((GLADloadproc)glfwGetProcAddress)) {
-            std::cerr << "Erreur: Init GLAD" << std::endl;
+            std::cout << "[Window ERROR] Failed to initialize GLAD" << std::endl;
             return;
         }
+        std::cout << "[Window] GLAD initialized successfully" << std::endl;
+        std::cout << "[Window] OpenGL version: " << glGetString(GL_VERSION) << std::endl;
 
         glViewport(0, 0, width, height);
     }

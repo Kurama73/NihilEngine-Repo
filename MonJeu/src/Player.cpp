@@ -21,9 +21,26 @@ namespace MonJeu {
           m_ShowFOV(true),
           m_Yaw(-90.0f),
           m_Pitch(0.0f)
-    {}
+    {
+        // Initialize audio components
+        m_AudioSource = new NihilEngine::AudioSource();
+        m_FootstepBuffer = new NihilEngine::AudioBuffer();
+        m_JumpBuffer = new NihilEngine::AudioBuffer();
+        m_LandBuffer = new NihilEngine::AudioBuffer();
 
-    Player::~Player() = default;
+        // Load audio files (you'll need to add these sound files to your assets)
+        // m_FootstepBuffer->loadFromFile("assets/sounds/footstep.wav");
+        // m_JumpBuffer->loadFromFile("assets/sounds/jump.wav");
+        // m_LandBuffer->loadFromFile("assets/sounds/land.wav");
+    }
+
+    Player::~Player() {
+        // Clean up audio resources
+        delete m_AudioSource;
+        delete m_FootstepBuffer;
+        delete m_JumpBuffer;
+        delete m_LandBuffer;
+    }
 
     void Player::Update(float deltaTime, NihilEngine::Camera& camera, VoxelWorld& world, bool isCurrent) {
         if (isCurrent) {
@@ -110,6 +127,45 @@ namespace MonJeu {
         if (isCurrent) {
             camera.SetPosition(eye);
         }
+
+        // Update audio position
+        UpdateAudioPosition();
+
+        // Play footstep sounds when moving on ground
+        if (!m_IsFlying && glm::length(moveInput) > 0.0f) {
+            // Check if player is on ground
+            glm::vec3 belowFeet = m_Position - glm::vec3(0, Constants::PLAYER_HEIGHT * 0.5f + Constants::COLLISION_OFFSET, 0);
+            if (!world.IsPositionValid(belowFeet, Constants::COLLISION_RADIUS)) {
+                // Simple footstep timing - play sound every ~0.5 seconds when moving
+                static float footstepTimer = 0.0f;
+                footstepTimer += deltaTime;
+                if (footstepTimer >= 0.5f) {
+                    PlayFootstepSound();
+                    footstepTimer = 0.0f;
+                }
+            }
+        }
+
+        // Play jump sound
+        if (!m_IsFlying && NihilEngine::Input::IsKeyTriggered(GLFW_KEY_SPACE)) {
+            glm::vec3 belowFeet = m_Position - glm::vec3(0, Constants::PLAYER_HEIGHT * 0.5f + Constants::COLLISION_OFFSET, 0);
+            if (!world.IsPositionValid(belowFeet, Constants::COLLISION_RADIUS)) {
+                PlayJumpSound();
+            }
+        }
+
+        // Play land sound when hitting ground
+        static bool wasInAir = false;
+        bool isOnGround = false;
+        if (!m_IsFlying) {
+            glm::vec3 belowFeet = m_Position - glm::vec3(0, Constants::PLAYER_HEIGHT * 0.5f + Constants::COLLISION_OFFSET, 0);
+            isOnGround = !world.IsPositionValid(belowFeet, Constants::COLLISION_RADIUS);
+        }
+
+        if (wasInAir && isOnGround && m_Velocity.y < -5.0f) { // Only play if falling fast enough
+            PlayLandSound();
+        }
+        wasInAir = !isOnGround;
     }
 
     void Player::Render(NihilEngine::Renderer& renderer, const NihilEngine::Camera& camera) {
@@ -148,6 +204,40 @@ namespace MonJeu {
             glm::vec3 blockMin = glm::vec3(hit.blockPosition);
             glm::vec3 blockMax = blockMin + glm::vec3(1.0f);
             renderer.DrawWireCube(blockMin, blockMax, camera, glm::vec3(1.0f, 0.5f, 0.0f));
+        }
+    }
+
+    // Audio methods implementation
+    void Player::PlayFootstepSound() {
+        if (m_AudioSource && m_FootstepBuffer && m_FootstepBuffer->isLoaded()) {
+            m_AudioSource->setBuffer(m_FootstepBuffer);
+            m_AudioSource->setPosition(m_Position);
+            m_AudioSource->setVolume(0.3f);
+            m_AudioSource->play();
+        }
+    }
+
+    void Player::PlayJumpSound() {
+        if (m_AudioSource && m_JumpBuffer && m_JumpBuffer->isLoaded()) {
+            m_AudioSource->setBuffer(m_JumpBuffer);
+            m_AudioSource->setPosition(m_Position);
+            m_AudioSource->setVolume(0.5f);
+            m_AudioSource->play();
+        }
+    }
+
+    void Player::PlayLandSound() {
+        if (m_AudioSource && m_LandBuffer && m_LandBuffer->isLoaded()) {
+            m_AudioSource->setBuffer(m_LandBuffer);
+            m_AudioSource->setPosition(m_Position);
+            m_AudioSource->setVolume(0.4f);
+            m_AudioSource->play();
+        }
+    }
+
+    void Player::UpdateAudioPosition() {
+        if (m_AudioSource) {
+            m_AudioSource->setPosition(m_Position);
         }
     }
 

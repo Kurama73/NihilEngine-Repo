@@ -3,6 +3,7 @@
 #include <NihilEngine/Camera.h>
 #include <NihilEngine/Physics.h>
 #include <NihilEngine/IControllableEntity.h>
+#include <NihilEngine/Audio.h>
 #include <glm/glm.hpp>
 
 namespace MonJeu {
@@ -37,6 +38,12 @@ namespace MonJeu {
             // New: Toggle raycast visualization
             void ToggleRaycastVis() { m_ShowRaycast = !m_ShowRaycast; }
 
+            // Audio methods
+            void PlayFootstepSound();
+            void PlayJumpSound();
+            void PlayLandSound();
+            void UpdateAudioPosition();
+
         private:
             glm::vec3 m_Position;
             glm::vec3 m_Velocity;
@@ -49,6 +56,12 @@ namespace MonJeu {
             glm::vec3 m_Facing = glm::vec3(0.0f, 0.0f, 1.0f);
             float m_Yaw = -90.0f;   // regarde +Z au début
             float m_Pitch = 0.0f;
+
+            // Audio members
+            NihilEngine::AudioSource* m_AudioSource = nullptr;
+            NihilEngine::AudioBuffer* m_FootstepBuffer = nullptr;
+            NihilEngine::AudioBuffer* m_JumpBuffer = nullptr;
+            NihilEngine::AudioBuffer* m_LandBuffer = nullptr;
 
     };
 }

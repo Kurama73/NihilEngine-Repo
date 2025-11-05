@@ -1,5 +1,7 @@
 #pragma once
 
+#include <glm/glm.hpp>
+
 namespace MonJeu {
     namespace Constants {
         // Player constants
@@ -26,6 +28,28 @@ namespace MonJeu {
 
         // Rendering
         constexpr float LINE_WIDTH = 2.0f;
+
+        // Biomes
+        enum class BiomeType {
+            Plains,
+            Forest,
+            Desert,
+            Tundra,
+            Swamp
+        };
+
+        struct Biome {
+            BiomeType type;
+            glm::vec3 grassColor;
+        };
+
+        const Biome BIOMES[] = {
+            {BiomeType::Plains, glm::vec3(0.4f, 0.8f, 0.2f)},  // Green
+            {BiomeType::Forest, glm::vec3(0.3f, 0.7f, 0.2f)},  // Darker green
+            {BiomeType::Desert, glm::vec3(0.8f, 0.8f, 0.2f)},  // Yellowish
+            {BiomeType::Tundra, glm::vec3(0.6f, 0.8f, 0.6f)},  // Light green
+            {BiomeType::Swamp, glm::vec3(0.2f, 0.6f, 0.3f)}    // Teal green
+        };
 
         // Input
         constexpr float RAYCAST_DISTANCE = 6.0f;

@@ -48,7 +48,19 @@ namespace MonJeu {
             RenderText(ssPlayer.str(), 10.0f, y, glm::vec3(0.0f, 1.0f, 0.0f));  // Vert
         }
 
+        // Render custom texts
+        for (const auto& customText : customTexts) {
+            RenderText(customText.text, customText.x, customText.y, glm::vec3(1.0f, 1.0f, 1.0f));  // Blanc
+        }
+
+        // Clear custom texts for next frame
+        customTexts.clear();
+
         glEnable(GL_DEPTH_TEST);
+    }
+
+    void GameDebugOverlay::AddText(const std::string& text, float x, float y) {
+        customTexts.push_back({text, x, y});
     }
 
     void GameDebugOverlay::RenderText(const std::string& text, float x, float y, const glm::vec3& color) {

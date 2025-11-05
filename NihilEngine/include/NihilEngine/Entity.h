@@ -25,6 +25,12 @@ namespace NihilEngine {
         Entity(Entity&&) noexcept = default;
         Entity& operator=(Entity&&) noexcept = default;
 
+        // === Getters ajoutés ===
+        const glm::vec3& GetPosition() const { return m_Position; }
+        const glm::vec3& GetRotation() const { return m_Rotation; }
+        const glm::vec3& GetScale() const { return m_Scale; }
+        // =======================
+
         void SetPosition(const glm::vec3& position);
         void SetRotation(const glm::vec3& rotation);
         void SetScale(const glm::vec3& scale);

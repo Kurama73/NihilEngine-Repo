@@ -21,4 +21,9 @@ add_executable(MonJeu
 
 set_target_properties(MonJeu PROPERTIES CXX_STANDARD 17 CXX_STANDARD_REQUIRED YES)
 
-target_link_libraries(MonJeu PUBLIC MonJeuLib)
+target_include_directories(MonJeu PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}/include
+    ${CMAKE_SOURCE_DIR}/NihilEngine/include
+)
+
+target_link_libraries(MonJeu PRIVATE MonJeuLib NihilEngine)
