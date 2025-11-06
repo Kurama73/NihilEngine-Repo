@@ -1,6 +1,5 @@
 #pragma once
 
-#include <NihilEngine/LODSystem.h>
 #include <NihilEngine/ChunkDataCache.h>
 #include <glm/glm.hpp>
 #include <vector>
@@ -12,7 +11,6 @@ namespace NihilEngine {
 
 struct ChunkUpdateRequest {
     int chunkX, chunkZ;
-    ChunkLODLevel targetLOD;
     double priority; // Plus la priorité est élevée, plus tôt le chunk sera mis à jour
     double requestTime;
 
@@ -31,15 +29,14 @@ public:
     void setMaxPendingUpdates(int maxPending);
 
     // Gestion des demandes de mise à jour
-    void requestChunkUpdate(int chunkX, int chunkZ, ChunkLODLevel targetLOD, double priority = 1.0);
+    void requestChunkUpdate(int chunkX, int chunkZ, double priority = 1.0);
     void cancelChunkUpdate(int chunkX, int chunkZ);
 
     // Mise à jour progressive
     void updateChunks(double deltaTime,
                      const glm::vec3& cameraPosition,
-                     LODSystem& lodSystem,
                      ChunkDataCache& cache,
-                     std::function<void(int, int, ChunkLODLevel)> updateCallback);
+                     std::function<void(int, int)> updateCallback);
 
     // Statistiques
     int getPendingUpdatesCount() const;

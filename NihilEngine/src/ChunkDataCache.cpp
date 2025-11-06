@@ -40,12 +40,10 @@ void ChunkDataCache::cleanupOldData(double currentTime, double maxAge) {
 SimplifiedChunkData ChunkDataCache::generateSimplifiedData(
     int chunkX, int chunkZ,
     const std::vector<std::vector<float>>& heightMap,
-    const std::vector<std::vector<int>>& biomeMap,
-    ChunkLODLevel targetLOD
+    const std::vector<std::vector<int>>& biomeMap
 ) {
     SimplifiedChunkData data;
     data.position = glm::vec3(chunkX * 16.0f, 0.0f, chunkZ * 16.0f); // 16 = chunk size
-    data.lodLevel = targetLOD;
 
     // Calcul des statistiques de hauteur
     float minH = std::numeric_limits<float>::max();

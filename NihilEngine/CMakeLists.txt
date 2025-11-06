@@ -9,8 +9,6 @@ add_library(NihilEngine
     src/EntityController.cpp
     src/Environment.cpp
     src/Input.cpp
-    src/LODMeshGenerator.cpp
-    src/LODSystem.cpp
     src/Mesh.cpp
     src/Noise.cpp
     src/Performance.cpp

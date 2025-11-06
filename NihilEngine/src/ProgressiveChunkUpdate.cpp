@@ -16,7 +16,7 @@ void ProgressiveChunkUpdate::setMaxPendingUpdates(int maxPending) {
     m_maxPendingUpdates = std::max(10, maxPending);
 }
 
-void ProgressiveChunkUpdate::requestChunkUpdate(int chunkX, int chunkZ, ChunkLODLevel targetLOD, double priority) {
+void ProgressiveChunkUpdate::requestChunkUpdate(int chunkX, int chunkZ, double priority) {
     uint64_t key = getChunkKey(chunkX, chunkZ);
 
     // Vérifie si une demande existe déjà
@@ -25,7 +25,6 @@ void ProgressiveChunkUpdate::requestChunkUpdate(int chunkX, int chunkZ, ChunkLOD
         // Met à jour la priorité si elle est plus élevée
         if (priority > it->second.priority) {
             it->second.priority = priority;
-            it->second.targetLOD = targetLOD;
             it->second.requestTime = std::chrono::duration<double>(
                 std::chrono::high_resolution_clock::now().time_since_epoch()).count();
         }
@@ -45,7 +44,6 @@ void ProgressiveChunkUpdate::requestChunkUpdate(int chunkX, int chunkZ, ChunkLOD
     ChunkUpdateRequest request;
     request.chunkX = chunkX;
     request.chunkZ = chunkZ;
-    request.targetLOD = targetLOD;
     request.priority = priority;
     request.requestTime = std::chrono::duration<double>(
         std::chrono::high_resolution_clock::now().time_since_epoch()).count();
@@ -73,9 +71,8 @@ void ProgressiveChunkUpdate::cancelChunkUpdate(int chunkX, int chunkZ) {
 
 void ProgressiveChunkUpdate::updateChunks(double deltaTime,
                                          const glm::vec3& cameraPosition,
-                                         LODSystem& lodSystem,
                                          ChunkDataCache& cache,
-                                         std::function<void(int, int, ChunkLODLevel)> updateCallback) {
+                                         std::function<void(int, int)> updateCallback) {
     int updatesThisFrame = 0;
 
     while (!m_updateQueue.empty() && updatesThisFrame < m_updatesPerFrame) {
@@ -90,18 +87,8 @@ void ProgressiveChunkUpdate::updateChunks(double deltaTime,
             continue; // Demande annulée
         }
 
-        // Vérifie si le LOD demandé est toujours approprié
-        glm::vec3 chunkCenter(request.chunkX * 16.0f + 8.0f, 0.0f, request.chunkZ * 16.0f + 8.0f);
-        ChunkLODLevel currentLOD = lodSystem.getLODLevel(chunkCenter, cameraPosition);
-
-        if (currentLOD != request.targetLOD) {
-            // Le LOD a changé, annule cette demande
-            m_pendingRequests.erase(key);
-            continue;
-        }
-
         // Effectue la mise à jour
-        updateCallback(request.chunkX, request.chunkZ, request.targetLOD);
+        updateCallback(request.chunkX, request.chunkZ);
 
         // Supprime de la liste des demandes en attente
         m_pendingRequests.erase(key);

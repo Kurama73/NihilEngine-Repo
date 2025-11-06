@@ -7,10 +7,8 @@
 #include <NihilEngine/ProceduralGenerator.h>
 #include <NihilEngine/Entity.h>
 #include <NihilEngine/Physics.h>
-#include <NihilEngine/LODSystem.h>
 #include <NihilEngine/ChunkDataCache.h>
 #include <NihilEngine/ProgressiveChunkUpdate.h>
-#include <NihilEngine/LODMeshGenerator.h>
 #include <memory>
 #include "Chunk.h" // Utilise le nouveau header Chunk
 #include "WorldSaveManager.h" // Gestionnaire de sauvegarde
@@ -74,22 +72,18 @@ private:
 
     // Systèmes Moteur
     NihilEngine::ProceduralGenerator m_ProceduralGen;
-    NihilEngine::LODSystem m_LODSystem;
     NihilEngine::ChunkDataCache m_ChunkDataCache;
     NihilEngine::ProgressiveChunkUpdate m_ProgressiveUpdate;
-    NihilEngine::LODMeshGenerator m_LODMeshGenerator;
     NihilEngine::PhysicsWorld* m_PhysicsWorld; // Référence au monde physique
+
+    // Distance d'affichage
+    float m_DisplayDistance;
 
     // Système de sauvegarde
     WorldSaveManager* m_SaveManager;
 
-    // Suivi du LOD
-    std::unordered_map<uint64_t, NihilEngine::ChunkLODLevel> m_ChunkLODLevels;
-
     // Logique interne
     void GenerateChunk(int chunkX, int chunkZ);
-    void GenerateChunkLOD(int chunkX, int chunkZ, NihilEngine::ChunkLODLevel lodLevel);
-    NihilEngine::ChunkLODLevel GetChunkLOD(int chunkX, int chunkZ, const glm::vec3& cameraPosition) const;
 
     uint64_t GetChunkKey(int chunkX, int chunkZ) const;
 };

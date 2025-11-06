@@ -4,14 +4,12 @@
 #include <memory>
 #include <vector>
 #include <glm/glm.hpp>
-#include <NihilEngine/LODSystem.h>
 
 namespace NihilEngine {
 
 // Structure pour stocker les données simplifiées d'un chunk lointain
 struct SimplifiedChunkData {
     glm::vec3 position;
-    ChunkLODLevel lodLevel;
     float averageHeight = 0.0f;
     float minHeight = 0.0f;
     float maxHeight = 0.0f;
@@ -46,8 +44,7 @@ public:
     SimplifiedChunkData generateSimplifiedData(
         int chunkX, int chunkZ,
         const std::vector<std::vector<float>>& heightMap,
-        const std::vector<std::vector<int>>& biomeMap,
-        ChunkLODLevel targetLOD
+        const std::vector<std::vector<int>>& biomeMap
     );
 
     // Obtient la clé de cache pour un chunk
