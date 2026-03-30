@@ -20,12 +20,18 @@ namespace NihilEngine {
 
         void SetFullscreen(bool fullscreen);
         void SetVSync(bool enabled);
+        bool SupportsGpuCompute() const { return m_GpuComputeSupported; }
+        int GetGLMajorVersion() const { return m_GLVersionMajor; }
+        int GetGLMinorVersion() const { return m_GLVersionMinor; }
 
     private:
         GLFWwindow* m_Window;
         Camera* m_Camera = nullptr;
         int m_Width, m_Height;
         bool m_Fullscreen = false;
+        bool m_GpuComputeSupported = false;
+        int m_GLVersionMajor = 0;
+        int m_GLVersionMinor = 0;
 
         static void FramebufferSizeCallback(GLFWwindow* window, int width, int height);
     };

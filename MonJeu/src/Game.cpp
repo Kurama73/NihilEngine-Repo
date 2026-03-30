@@ -6,7 +6,10 @@
 #include <NihilEngine/Performance.h>
 #include <MonJeu/Constants.h>
 #include <GLFW/glfw3.h>
+#include <cmath>
+#include <iomanip>
 #include <iostream>
+#include <sstream>
 #include <string>
 
 namespace MonJeu {
@@ -84,39 +87,56 @@ void Game::InitializeGameObjects() {
     // 2. Monde
     m_VoxelWorld = std::make_unique<MonJeu::VoxelWorld>(12345, m_PhysicsWorld.get(), m_WorldSaveManager.get()); // Passe le monde physique et le gestionnaire de sauvegarde
     m_VoxelWorld->SetTextureAtlas(textureAtlas); //
+    m_VoxelWorld->SetTerrainGpuPreferred(false);
+    std::cout << "[Game] Terrain generation default mode: CPU (press F7 to toggle GPU experimental mode)." << std::endl;
 
     // 3. Joueur
     m_Player = std::make_unique<MonJeu::Player>(); //
 
-    // Générer la zone de spawn avant de placer le joueur
-    glm::vec3 tentativeSpawnPos = glm::vec3(0.5f, 0.0f, 0.5f); // Position temporaire pour calculer la hauteur
-    std::cout << "[Game] Generating spawn area to prevent falling through world..." << std::endl;
-    m_VoxelWorld->GenerateSpawnArea(tentativeSpawnPos, 3); // Générer 3 chunks de rayon autour du spawn
+    // Générer d'abord les chunks autour du spawn à la distance de rendu complète.
+    glm::vec3 tentativeSpawnPos = glm::vec3(0.5f, 0.0f, 0.5f);
+    const int spawnRadiusChunks = m_VoxelWorld->GetRecommendedStartupGenerationRadiusChunks();
+    std::cout << "[Game] Generating startup area around spawn (radius "
+              << spawnRadiusChunks << " chunks)..." << std::endl;
+    m_VoxelWorld->GenerateSpawnArea(tentativeSpawnPos, spawnRadiusChunks);
     std::cout << "[Game] Spawn area ready, placing player..." << std::endl;
 
-    // Spawn du joueur
-    NihilEngine::TerrainGenerator& terrainGen = m_VoxelWorld->GetProceduralGenerator().getTerrainGenerator(); //
-    float spawnHeight = terrainGen.getHeight(0.5f, 0.5f); //
-
-    // Vérifier que la position de spawn n'est pas dans un bloc solide
-    glm::vec3 testSpawnPos = glm::vec3(0.5f, spawnHeight + Constants::PLAYER_HEIGHT, 0.5f);
-    NihilEngine::AABB playerBox;
-    playerBox.min = testSpawnPos - glm::vec3(Constants::PLAYER_WIDTH * 0.5f, 0.0f, Constants::PLAYER_WIDTH * 0.5f);
-    playerBox.max = testSpawnPos + glm::vec3(Constants::PLAYER_WIDTH * 0.5f, Constants::PLAYER_HEIGHT, Constants::PLAYER_WIDTH * 0.5f);
-
-    if (m_VoxelWorld->CheckCollision(playerBox)) {
-        std::cout << "[Game] WARNING: Spawn position is inside solid block, adjusting height..." << std::endl;
-        // Monter progressivement jusqu'à trouver un espace libre
-        for (float offset = 1.0f; offset <= 10.0f; offset += 1.0f) {
-            testSpawnPos.y = spawnHeight + Constants::PLAYER_HEIGHT + offset;
-            playerBox.min = testSpawnPos - glm::vec3(Constants::PLAYER_WIDTH * 0.5f, 0.0f, Constants::PLAYER_WIDTH * 0.5f);
-            playerBox.max = testSpawnPos + glm::vec3(Constants::PLAYER_WIDTH * 0.5f, Constants::PLAYER_HEIGHT, Constants::PLAYER_WIDTH * 0.5f);
-            if (!m_VoxelWorld->CheckCollision(playerBox)) {
-                std::cout << "[Game] Found safe spawn position at height " << testSpawnPos.y << std::endl;
-                break;
-            }
-        }
+    const int spawnWorldX = static_cast<int>(std::floor(tentativeSpawnPos.x));
+    const int spawnWorldZ = static_cast<int>(std::floor(tentativeSpawnPos.z));
+    int groundY = m_VoxelWorld->FindHighestSolidBlockY(spawnWorldX, spawnWorldZ);
+    if (groundY < 0) {
+        // Fallback de sécurité si la colonne n'a pas été trouvée en mémoire.
+        NihilEngine::TerrainGenerator& terrainGen = m_VoxelWorld->GetProceduralGenerator().getTerrainGenerator();
+        groundY = static_cast<int>(std::floor(terrainGen.getHeight(static_cast<float>(spawnWorldX), static_cast<float>(spawnWorldZ))));
     }
+
+    auto findSafeSpawnY = [this](const glm::vec3& basePos, int maxLiftSteps = 48) {
+        glm::vec3 candidate = basePos;
+        NihilEngine::AABB playerBox;
+        const float halfWidth = Constants::COLLISION_RADIUS;
+        const float halfHeight = Constants::PLAYER_HEIGHT * 0.5f;
+
+        for (int step = 0; step <= maxLiftSteps; ++step) {
+            playerBox.min = candidate - glm::vec3(halfWidth, halfHeight, halfWidth);
+            playerBox.max = candidate + glm::vec3(halfWidth, halfHeight, halfWidth);
+            if (!m_VoxelWorld->CheckCollision(playerBox)) {
+                return candidate.y;
+            }
+            candidate.y += 1.0f;
+        }
+
+        return basePos.y;
+    };
+
+    // m_Position du joueur est le centre de la hitbox: on place donc le centre
+    // à (haut du bloc + demi-hauteur du joueur + marge).
+    glm::vec3 testSpawnPos = glm::vec3(
+        static_cast<float>(spawnWorldX) + 0.5f,
+        static_cast<float>(groundY) + 1.0f + (Constants::PLAYER_HEIGHT * 0.5f) + 0.05f,
+        static_cast<float>(spawnWorldZ) + 0.5f
+    );
+    testSpawnPos.y = findSafeSpawnY(testSpawnPos);
+    std::cout << "[Game] Safe spawn position resolved at y=" << testSpawnPos.y << std::endl;
 
     glm::vec3 spawnPos = testSpawnPos; //
     m_Player->SetPosition(spawnPos);
@@ -128,6 +148,21 @@ void Game::InitializeGameObjects() {
     // Charger l'état du joueur s'il existe
     MonJeu::PlayerState playerState;
     if (m_WorldSaveManager->LoadPlayerState(playerState)) {
+        // Pré-génère autour de la position sauvegardée pour éviter une chute dans le vide.
+        m_VoxelWorld->GenerateSpawnArea(playerState.position, spawnRadiusChunks);
+
+        const int loadedWorldX = static_cast<int>(std::floor(playerState.position.x));
+        const int loadedWorldZ = static_cast<int>(std::floor(playerState.position.z));
+        int loadedGroundY = m_VoxelWorld->FindHighestSolidBlockY(loadedWorldX, loadedWorldZ);
+        if (loadedGroundY >= 0) {
+            playerState.position.x = static_cast<float>(loadedWorldX) + 0.5f;
+            playerState.position.y = static_cast<float>(loadedGroundY) + 1.0f + (Constants::PLAYER_HEIGHT * 0.5f) + 0.05f;
+            playerState.position.z = static_cast<float>(loadedWorldZ) + 0.5f;
+        }
+
+        // Même logique de sécurité que pour le spawn initial: éviter de charger le joueur dans un bloc.
+        playerState.position.y = findSafeSpawnY(playerState.position);
+
         m_Player->SetPosition(playerState.position);
         m_Camera.SetPosition(playerState.position + glm::vec3(0.0f, Constants::EYE_HEIGHT, 0.0f));
         m_Camera.SetRotation(playerState.yaw, playerState.pitch);
@@ -179,6 +214,13 @@ void Game::ProcessInput(float deltaTime) {
     if (NihilEngine::Input::IsKeyTriggered(GLFW_KEY_F3)) m_DebugOverlay->ToggleDebugInfo(); //
     if (NihilEngine::Input::IsKeyTriggered(GLFW_KEY_F4)) m_Player->ToggleRaycastVis(); //
     if (NihilEngine::Input::IsKeyTriggered(GLFW_KEY_F6)) m_DebugOverlay->TogglePerformance(); //
+    if (NihilEngine::Input::IsKeyTriggered(GLFW_KEY_F7)) {
+        const bool nextGpuMode = !m_VoxelWorld->IsTerrainGpuPreferred();
+        m_VoxelWorld->SetTerrainGpuPreferred(nextGpuMode);
+        std::cout << "[Game] Terrain generation backend switched to "
+                  << (nextGpuMode ? "GPU preferred" : "CPU forced")
+                  << std::endl;
+    }
     if (NihilEngine::Input::IsKeyTriggered(GLFW_KEY_F5)) {
         std::cout << "[Game] Sauvegarde manuelle du monde..." << std::endl;
         // La sauvegarde automatique se fait déjà dans UpdateDirtyChunks, mais on peut forcer
@@ -288,6 +330,17 @@ void Game::Render() {
     m_Renderer->DrawCrosshair(m_Window->GetWidth(), m_Window->GetHeight()); //
 
     if (m_DebugOverlay) {  // Vérification de sécurité
+        std::stringstream terrainBackend;
+        terrainBackend << std::fixed << std::setprecision(3)
+                       << "Terrain backend: "
+                       << (m_VoxelWorld->IsTerrainGpuPreferred() ? "GPU preferred" : "CPU forced")
+                       << " | GPU available: "
+                       << (m_VoxelWorld->IsTerrainGpuAvailable() ? "yes" : "no")
+                       << " | Last gen: "
+                       << (m_VoxelWorld->WasLastTerrainGenerationGpu() ? "GPU" : "CPU")
+                       << " (" << m_VoxelWorld->GetLastTerrainGenerationMs() << " ms)";
+        m_DebugOverlay->AddText(terrainBackend.str(), 10.0f, 190.0f);
+
         m_DebugOverlay->RenderDebugInfo( //
             m_FPS,
             static_cast<int>(m_VoxelWorld->GetChunkCount()),

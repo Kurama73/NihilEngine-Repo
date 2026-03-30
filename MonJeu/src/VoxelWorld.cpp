@@ -232,6 +232,62 @@ void VoxelWorld::WorldToChunk(int worldX, int worldZ, int& chunkX, int& chunkZ) 
     if (worldZ < 0) chunkZ = (worldZ - Chunk::SIZE + 1) / Chunk::SIZE;
 }
 
+int VoxelWorld::GetDisplayDistanceChunks() const {
+    return static_cast<int>(m_DisplayDistance / Chunk::SIZE) + 1;
+}
+
+int VoxelWorld::GetRecommendedStartupGenerationRadiusChunks() const {
+    // Startup pre-generation is capped to avoid long blocking screens.
+    return std::clamp(GetDisplayDistanceChunks(), 3, 8);
+}
+
+int VoxelWorld::FindHighestSolidBlockY(int worldX, int worldZ) const {
+    int chunkX, chunkZ;
+    WorldToChunk(worldX, worldZ, chunkX, chunkZ);
+    uint64_t key = GetChunkKey(chunkX, chunkZ);
+
+    auto it = m_Chunks.find(key);
+    if (it == m_Chunks.end()) {
+        return -1;
+    }
+
+    int localX = worldX - chunkX * Chunk::SIZE;
+    int localZ = worldZ - chunkZ * Chunk::SIZE;
+    if (localX < 0 || localX >= Chunk::SIZE || localZ < 0 || localZ >= Chunk::SIZE) {
+        return -1;
+    }
+
+    const Chunk& chunk = *it->second;
+    for (int y = Chunk::HEIGHT - 1; y >= 0; --y) {
+        const Voxel& voxel = chunk.GetVoxel(localX, y, localZ);
+        if (voxel.active && voxel.type != BlockType::Water) {
+            return y;
+        }
+    }
+
+    return -1;
+}
+
+void VoxelWorld::SetTerrainGpuPreferred(bool enabled) {
+    m_ProceduralGen.setTerrainGpuPreferred(enabled);
+}
+
+bool VoxelWorld::IsTerrainGpuPreferred() const {
+    return m_ProceduralGen.isTerrainGpuPreferred();
+}
+
+bool VoxelWorld::IsTerrainGpuAvailable() const {
+    return m_ProceduralGen.isTerrainGpuAvailable();
+}
+
+bool VoxelWorld::WasLastTerrainGenerationGpu() const {
+    return m_ProceduralGen.wasLastTerrainGenerationGpu();
+}
+
+double VoxelWorld::GetLastTerrainGenerationMs() const {
+    return m_ProceduralGen.getLastTerrainGenerationMs();
+}
+
 bool VoxelWorld::GetVoxelActive(int worldX, int worldY, int worldZ) const {
     int chunkX, chunkZ;
     WorldToChunk(worldX, worldZ, chunkX, chunkZ);
@@ -241,8 +297,9 @@ bool VoxelWorld::GetVoxelActive(int worldX, int worldY, int worldZ) const {
         int localX = worldX - chunkX * Chunk::SIZE;
         int localZ = worldZ - chunkZ * Chunk::SIZE;
         int localY = worldY;
-        if (localX >= 0 && localX < Chunk::SIZE && localY >= 0 && localY < Chunk::SIZE && localZ >= 0 && localZ < Chunk::SIZE) {
-            return m_Chunks.at(key)->GetVoxel(localX, localY, localZ).active;
+        if (localX >= 0 && localX < Chunk::SIZE && localY >= 0 && localY < Chunk::HEIGHT && localZ >= 0 && localZ < Chunk::SIZE) {
+            const Voxel& voxel = m_Chunks.at(key)->GetVoxel(localX, localY, localZ);
+            return voxel.active && voxel.type != BlockType::Water;
         }
     }
     return false;
@@ -258,7 +315,7 @@ void VoxelWorld::SetVoxelActive(int worldX, int worldY, int worldZ, bool active)
         int localX = worldX - chunkX * Chunk::SIZE;
         int localZ = worldZ - chunkZ * Chunk::SIZE;
         int localY = worldY;
-        if (localX >= 0 && localX < Chunk::SIZE && localY >= 0 && localY < Chunk::SIZE && localZ >= 0 && localZ < Chunk::SIZE) {
+        if (localX >= 0 && localX < Chunk::SIZE && localY >= 0 && localY < Chunk::HEIGHT && localZ >= 0 && localZ < Chunk::SIZE) {
             m_Chunks[key]->GetVoxel(localX, localY, localZ).active = active;
             if (active) {
                 m_Chunks[key]->GetVoxel(localX, localY, localZ).type = BlockType::Grass;

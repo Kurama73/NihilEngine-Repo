@@ -60,7 +60,16 @@ public:
     // --- Accesseurs ---
     NihilEngine::ProceduralGenerator& GetProceduralGenerator() { return m_ProceduralGen; }
     int GetChunkCount() const { return m_Chunks.size(); }
+    int GetDisplayDistanceChunks() const;
+    int GetRecommendedStartupGenerationRadiusChunks() const;
+    int FindHighestSolidBlockY(int worldX, int worldZ) const;
     static void WorldToChunk(int worldX, int worldZ, int& chunkX, int& chunkZ);
+
+    void SetTerrainGpuPreferred(bool enabled);
+    bool IsTerrainGpuPreferred() const;
+    bool IsTerrainGpuAvailable() const;
+    bool WasLastTerrainGenerationGpu() const;
+    double GetLastTerrainGenerationMs() const;
 
 private:
     // État du jeu

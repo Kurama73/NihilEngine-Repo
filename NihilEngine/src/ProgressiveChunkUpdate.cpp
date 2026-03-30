@@ -111,7 +111,8 @@ void ProgressiveChunkUpdate::resetProcessedUpdatesCount() {
 }
 
 uint64_t ProgressiveChunkUpdate::getChunkKey(int chunkX, int chunkZ) const {
-    return (static_cast<uint64_t>(chunkX) << 32) | static_cast<uint64_t>(chunkZ);
+    return (static_cast<uint64_t>(static_cast<int32_t>(chunkX)) << 32)
+         | (static_cast<uint64_t>(static_cast<int32_t>(chunkZ)) & 0xFFFFFFFFull);
 }
 
 }

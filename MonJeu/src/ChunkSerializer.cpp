@@ -11,7 +11,7 @@ std::vector<uint8_t> ChunkSerializer::SerializeChunk(const Chunk& chunk) {
     size_t offset = 0;
 
     // Version
-    uint32_t version = 1;
+    uint32_t version = 2;
     std::memcpy(data.data() + offset, &version, sizeof(uint32_t));
     offset += sizeof(uint32_t);
 
@@ -31,7 +31,7 @@ std::vector<uint8_t> ChunkSerializer::SerializeChunk(const Chunk& chunk) {
     offset += sizeof(uint8_t);
 
     // voxelData
-    for (int y = 0; y < Chunk::SIZE; ++y) {
+    for (int y = 0; y < Chunk::HEIGHT; ++y) {
         for (int z = 0; z < Chunk::SIZE; ++z) {
             for (int x = 0; x < Chunk::SIZE; ++x) {
                 const Voxel& voxel = chunk.GetVoxel(x, y, z);
@@ -63,7 +63,7 @@ ChunkSerializer::SerializedChunk ChunkSerializer::DeserializeChunk(const std::ve
     std::memcpy(&version, data.data() + offset, sizeof(uint32_t));
     offset += sizeof(uint32_t);
 
-    if (version != 1) {
+    if (version != 2) {
         throw std::runtime_error("Unsupported chunk data version");
     }
     result.version = version;
@@ -99,7 +99,7 @@ void ChunkSerializer::ApplySerializedDataToChunk(Chunk& chunk, const SerializedC
     }
 
     size_t offset = 0;
-    for (int y = 0; y < Chunk::SIZE; ++y) {
+    for (int y = 0; y < Chunk::HEIGHT; ++y) {
         for (int z = 0; z < Chunk::SIZE; ++z) {
             for (int x = 0; x < Chunk::SIZE; ++x) {
                 Voxel& voxel = chunk.GetVoxel(x, y, z);
@@ -120,7 +120,7 @@ std::unique_ptr<Chunk> ChunkSerializer::CreateChunkFromSerializedData(const Seri
     auto chunk = std::make_unique<Chunk>(data.chunkX, data.chunkZ, data.biome);
 
     size_t offset = 0;
-    for (int y = 0; y < Chunk::SIZE; ++y) {
+    for (int y = 0; y < Chunk::HEIGHT; ++y) {
         for (int z = 0; z < Chunk::SIZE; ++z) {
             for (int x = 0; x < Chunk::SIZE; ++x) {
                 Voxel& voxel = chunk->GetVoxel(x, y, z);

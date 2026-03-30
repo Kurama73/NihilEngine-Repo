@@ -11,7 +11,7 @@
 namespace MonJeu {
 
 // Type de bloc simple pour le jeu
-enum class BlockType { Air, Grass, Dirt, Stone };
+enum class BlockType { Air, Grass, Dirt, Stone, Water };
 
 // Voxel de jeu
 struct Voxel {
@@ -27,11 +27,12 @@ struct ChunkMeshes {
 };
 
 /**
- * @brief Représente une section 16x16x16 du monde de voxels.
+ * @brief Représente une section 16x16x128 du monde de voxels.
  */
 class Chunk {
 public:
-    static const int SIZE = 16;
+    static const int SIZE = 16;   // Empreinte X/Z (Minecraft-like)
+    static const int HEIGHT = 128;
 
     Chunk(int chunkX, int chunkZ, Constants::BiomeType biome);
     ~Chunk() = default;

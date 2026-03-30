@@ -2,6 +2,7 @@
 #pragma once
 #include <NihilEngine/Entity.h>
 #include <NihilEngine/Camera.h>
+#include <glad/glad.h>
 #include <glm/glm.hpp>
 #include <vector>
 
@@ -38,10 +39,24 @@ namespace NihilEngine {
         void DrawParticles(const Camera& camera);
 
     private:
+        struct MainUniformLocations {
+            GLint viewProjection = -1;
+            GLint model = -1;
+            GLint viewPos = -1;
+            GLint texture = -1;
+            GLint color = -1;
+            GLint hasTexture = -1;
+            GLint fogEnabled = -1;
+            GLint fogColor = -1;
+            GLint fogDensity = -1;
+            GLint lightPos = -1;
+        };
+
         void InitShaders();
         void InitCrosshair();
         void InitLineShader();
         void InitParticleShader();
+        void CacheMainUniformLocations();
 
         unsigned int m_ShaderProgram = 0;
         unsigned int m_CrosshairShaderProgram = 0;
@@ -50,6 +65,7 @@ namespace NihilEngine {
         unsigned int m_CrosshairVAO = 0, m_CrosshairVBO = 0;
         unsigned int m_LineVAO = 0, m_LineVBO = 0;
         unsigned int m_ParticleVAO = 0, m_ParticleVBO = 0;
+        MainUniformLocations m_MainUniforms;
 
         // Fog
         bool m_FogEnabled = false;

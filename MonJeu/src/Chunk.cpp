@@ -1,32 +1,44 @@
 // src/Chunk.cpp
 #include <MonJeu/Chunk.h>
+#include <algorithm>
 #include <array>
 #include <cmath>
 
 namespace MonJeu {
 
 Chunk::Chunk(int chunkX, int chunkZ, Constants::BiomeType biome)
-    : m_ChunkX(chunkX), m_ChunkZ(chunkZ), m_Biome(biome), m_Voxels(SIZE * SIZE * SIZE) {}
+    : m_ChunkX(chunkX), m_ChunkZ(chunkZ), m_Biome(biome), m_Voxels(SIZE * HEIGHT * SIZE) {}
 
 // Logique de génération de terrain (extraite de VoxelWorld.cpp)
 void Chunk::GenerateTerrain(NihilEngine::ProceduralGenerator& generator) {
     NihilEngine::TerrainGenerator& terrainGen = generator.getTerrainGenerator();
     NihilEngine::BiomeGenerator& biomeGen = generator.getBiomeGenerator();
+    const auto& settings = generator.getVoxelGenerationSettings();
+
+    const int startWorldX = m_ChunkX * SIZE;
+    const int startWorldZ = m_ChunkZ * SIZE;
+    const auto heights = terrainGen.generateHeightMapRegion(startWorldX, startWorldZ, SIZE, SIZE, 1.0f);
+
+    const int seaLevel = std::clamp(settings.seaLevel, 2, HEIGHT - 2);
+    const int soilDepth = std::max(1, settings.soilDepth);
 
     for (int x = 0; x < SIZE; ++x) {
         for (int z = 0; z < SIZE; ++z) {
-            int worldX = m_ChunkX * SIZE + x;
-            int worldZ = m_ChunkZ * SIZE + z;
+            int worldX = startWorldX + x;
+            int worldZ = startWorldZ + z;
 
-            float terrainHeight = terrainGen.getHeight(static_cast<float>(worldX), static_cast<float>(worldZ));
-            int height = static_cast<int>(terrainHeight);
+            float terrainHeight = heights[z][x];
+            int height = std::clamp(static_cast<int>(terrainHeight), 8, HEIGHT - 2);
 
             NihilEngine::BiomeType biome = biomeGen.getBiome(static_cast<float>(worldX), static_cast<float>(worldZ), terrainHeight);
             m_Biome = convertBiomeType(biome);
 
-            for (int y = 0; y < SIZE; ++y) {
+            for (int y = 0; y < HEIGHT; ++y) {
                 Voxel& voxel = GetVoxel(x, y, z);
-                if (y < height - 3) {
+                if (y == 0) {
+                    voxel.type = BlockType::Stone;
+                    voxel.active = true;
+                } else if (y < height - soilDepth) {
                     voxel.type = BlockType::Stone;
                     voxel.active = true;
                 } else if (y < height) {
@@ -34,6 +46,9 @@ void Chunk::GenerateTerrain(NihilEngine::ProceduralGenerator& generator) {
                     voxel.active = true;
                 } else if (y == height) {
                     voxel.type = BlockType::Grass;
+                    voxel.active = true;
+                } else if (y <= seaLevel) {
+                    voxel.type = BlockType::Water;
                     voxel.active = true;
                 } else {
                     voxel.type = BlockType::Air;
@@ -62,7 +77,7 @@ ChunkMeshes Chunk::CreateMeshes() const {
     // grassTopVertices et grassTopIndices supprimés - herbe intégrée dans mainMesh
 
     for (int x = 0; x < SIZE; ++x) {
-        for (int y = 0; y < SIZE; ++y) {
+        for (int y = 0; y < HEIGHT; ++y) {
             for (int z = 0; z < SIZE; ++z) {
                 const Voxel& voxel = GetVoxel(x, y, z);
                 if (!voxel.active) continue;
@@ -73,7 +88,7 @@ ChunkMeshes Chunk::CreateMeshes() const {
                 if (z - 1 >= 0) visible[1] = !GetVoxel(x, y, z - 1).active;
                 if (x - 1 >= 0) visible[2] = !GetVoxel(x - 1, y, z).active;
                 if (x + 1 < SIZE) visible[3] = !GetVoxel(x + 1, y, z).active;
-                if (y + 1 < SIZE) visible[4] = !GetVoxel(x, y + 1, z).active;
+                if (y + 1 < HEIGHT) visible[4] = !GetVoxel(x, y + 1, z).active;
                 if (y - 1 >= 0) visible[5] = !GetVoxel(x, y - 1, z).active;
 
                 AddVisibleFacesToMeshes(mainVertices, mainIndices, x, y, z, voxel.type, visible);
@@ -113,6 +128,12 @@ void Chunk::AddVisibleFacesToMeshes(std::vector<float>& mainVertices, std::vecto
         case BlockType::Stone:
             side_u_min = top_u_min = bottom_u_min = 0.75f;
             side_u_max = top_u_max = bottom_u_max = 1.0f;
+            break;
+        case BlockType::Water:
+            side_u_min = top_u_min = bottom_u_min = 0.75f;
+            side_u_max = top_u_max = bottom_u_max = 1.0f;
+            v_min = 0.5f;
+            v_max = 1.0f;
             break;
         default:
             return;
@@ -226,7 +247,7 @@ const Voxel& Chunk::GetVoxel(int x, int y, int z) const {
 }
 
 int Chunk::GetIndex(int x, int y, int z) const {
-    return x + y * SIZE + z * SIZE * SIZE;
+    return x + y * SIZE + z * SIZE * HEIGHT;
 }
 
 Constants::BiomeType Chunk::GetBiomeAt(int worldX, int worldZ) {

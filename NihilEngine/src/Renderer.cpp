@@ -123,6 +123,7 @@ namespace NihilEngine {
 
     Renderer::Renderer() {
         glEnable(GL_DEPTH_TEST);
+        glEnable(GL_MULTISAMPLE);
         InitShaders();
         InitCrosshair();
         InitLineShader();
@@ -174,10 +175,25 @@ namespace NihilEngine {
             char infoLog[512];
             glGetProgramInfoLog(m_ShaderProgram, 512, nullptr, infoLog);
             std::cerr << "Shader program linking failed: " << infoLog << std::endl;
+        } else {
+            CacheMainUniformLocations();
         }
 
         glDeleteShader(vertex);
         glDeleteShader(fragment);
+    }
+
+    void Renderer::CacheMainUniformLocations() {
+        m_MainUniforms.viewProjection = glGetUniformLocation(m_ShaderProgram, "u_ViewProjection");
+        m_MainUniforms.model = glGetUniformLocation(m_ShaderProgram, "u_Model");
+        m_MainUniforms.viewPos = glGetUniformLocation(m_ShaderProgram, "u_ViewPos");
+        m_MainUniforms.texture = glGetUniformLocation(m_ShaderProgram, "u_Texture");
+        m_MainUniforms.color = glGetUniformLocation(m_ShaderProgram, "u_Color");
+        m_MainUniforms.hasTexture = glGetUniformLocation(m_ShaderProgram, "u_HasTexture");
+        m_MainUniforms.fogEnabled = glGetUniformLocation(m_ShaderProgram, "u_FogEnabled");
+        m_MainUniforms.fogColor = glGetUniformLocation(m_ShaderProgram, "u_FogColor");
+        m_MainUniforms.fogDensity = glGetUniformLocation(m_ShaderProgram, "u_FogDensity");
+        m_MainUniforms.lightPos = glGetUniformLocation(m_ShaderProgram, "u_LightPos");
     }
 
     void Renderer::InitCrosshair() {
@@ -272,27 +288,27 @@ namespace NihilEngine {
         glUseProgram(m_ShaderProgram);
 
         glm::mat4 vp = camera.GetViewProjectionMatrix();
-        glUniformMatrix4fv(glGetUniformLocation(m_ShaderProgram, "u_ViewProjection"), 1, GL_FALSE, glm::value_ptr(vp));
-        glUniformMatrix4fv(glGetUniformLocation(m_ShaderProgram, "u_Model"), 1, GL_FALSE, glm::value_ptr(entity.GetModelMatrix()));
-        glUniform3fv(glGetUniformLocation(m_ShaderProgram, "u_ViewPos"), 1, glm::value_ptr(camera.GetPosition()));
+        glUniformMatrix4fv(m_MainUniforms.viewProjection, 1, GL_FALSE, glm::value_ptr(vp));
+        glUniformMatrix4fv(m_MainUniforms.model, 1, GL_FALSE, glm::value_ptr(entity.GetModelMatrix()));
+        glUniform3fv(m_MainUniforms.viewPos, 1, glm::value_ptr(camera.GetPosition()));
 
         // Set lighting uniforms
-        glUniform3f(glGetUniformLocation(m_ShaderProgram, "u_LightPos"), Constants::LIGHT_POS_X, Constants::LIGHT_POS_Y, Constants::LIGHT_POS_Z);
+        glUniform3f(m_MainUniforms.lightPos, Constants::LIGHT_POS_X, Constants::LIGHT_POS_Y, Constants::LIGHT_POS_Z);
 
         // Set fog uniforms
-        glUniform1i(glGetUniformLocation(m_ShaderProgram, "u_FogEnabled"), m_FogEnabled);
-        glUniform3fv(glGetUniformLocation(m_ShaderProgram, "u_FogColor"), 1, glm::value_ptr(m_FogColor));
-        glUniform1f(glGetUniformLocation(m_ShaderProgram, "u_FogDensity"), m_FogDensity);
+        glUniform1i(m_MainUniforms.fogEnabled, static_cast<int>(m_FogEnabled));
+        glUniform3fv(m_MainUniforms.fogColor, 1, glm::value_ptr(m_FogColor));
+        glUniform1f(m_MainUniforms.fogDensity, m_FogDensity);
 
         const auto& material = entity.GetMaterial();
-        glUniform4fv(glGetUniformLocation(m_ShaderProgram, "u_Color"), 1, glm::value_ptr(material.color));
+        glUniform4fv(m_MainUniforms.color, 1, glm::value_ptr(material.color));
         bool hasTexture = material.textureID.has_value();
-        glUniform1i(glGetUniformLocation(m_ShaderProgram, "u_HasTexture"), hasTexture);
+        glUniform1i(m_MainUniforms.hasTexture, static_cast<int>(hasTexture));
 
         if (hasTexture) {
             glActiveTexture(GL_TEXTURE0);
             glBindTexture(GL_TEXTURE_2D, material.textureID.value());
-            glUniform1i(glGetUniformLocation(m_ShaderProgram, "u_Texture"), 0);
+            glUniform1i(m_MainUniforms.texture, 0);
         }
 
         entity.GetMesh().Bind();
@@ -382,11 +398,11 @@ namespace NihilEngine {
         glUseProgram(m_ShaderProgram);
 
         glm::mat4 vp = camera.GetViewProjectionMatrix();
-        glUniformMatrix4fv(glGetUniformLocation(m_ShaderProgram, "u_ViewProjection"), 1, GL_FALSE, glm::value_ptr(vp));
-        glUniformMatrix4fv(glGetUniformLocation(m_ShaderProgram, "u_Model"), 1, GL_FALSE, glm::value_ptr(model));
-        glUniform3fv(glGetUniformLocation(m_ShaderProgram, "u_ViewPos"), 1, glm::value_ptr(camera.GetPosition()));
-        glUniform4fv(glGetUniformLocation(m_ShaderProgram, "u_Color"), 1, glm::value_ptr(color));
-        glUniform1i(glGetUniformLocation(m_ShaderProgram, "u_HasTexture"), false);
+        glUniformMatrix4fv(m_MainUniforms.viewProjection, 1, GL_FALSE, glm::value_ptr(vp));
+        glUniformMatrix4fv(m_MainUniforms.model, 1, GL_FALSE, glm::value_ptr(model));
+        glUniform3fv(m_MainUniforms.viewPos, 1, glm::value_ptr(camera.GetPosition()));
+        glUniform4fv(m_MainUniforms.color, 1, glm::value_ptr(color));
+        glUniform1i(m_MainUniforms.hasTexture, 0);
     }
 
     // Fog methods
