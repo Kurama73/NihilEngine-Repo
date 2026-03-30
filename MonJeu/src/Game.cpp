@@ -219,7 +219,13 @@ void Game::ProcessInput(float deltaTime) {
         m_VoxelWorld->SetTerrainGpuPreferred(nextGpuMode);
         std::cout << "[Game] Terrain generation backend switched to "
                   << (nextGpuMode ? "GPU preferred" : "CPU forced")
+                  << " | GPU available: "
+                  << (m_VoxelWorld->IsTerrainGpuAvailable() ? "yes" : "no")
                   << std::endl;
+
+        if (nextGpuMode && !m_VoxelWorld->IsTerrainGpuAvailable()) {
+            std::cout << "[Game] WARNING: GPU backend requested but unavailable. Terrain generation stays on CPU fallback." << std::endl;
+        }
     }
     if (NihilEngine::Input::IsKeyTriggered(GLFW_KEY_F5)) {
         std::cout << "[Game] Sauvegarde manuelle du monde..." << std::endl;

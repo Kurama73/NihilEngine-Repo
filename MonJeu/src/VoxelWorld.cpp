@@ -107,10 +107,15 @@ void VoxelWorld::GenerateChunk(int chunkX, int chunkZ) {
     if (!chunk) {
         Constants::BiomeType biome = Chunk::GetBiomeAt(chunkX * Chunk::SIZE, chunkZ * Chunk::SIZE);
         chunk = std::make_unique<Chunk>(chunkX, chunkZ, biome);
+
+        NihilEngine::PerformanceMonitor::getInstance().startSection("ChunkGen_Terrain");
         chunk->GenerateTerrain(m_ProceduralGen);
+        NihilEngine::PerformanceMonitor::getInstance().endSection("ChunkGen_Terrain");
     }
 
+    NihilEngine::PerformanceMonitor::getInstance().startSection("ChunkGen_Mesh");
     auto meshes = chunk->CreateMeshes();
+    NihilEngine::PerformanceMonitor::getInstance().endSection("ChunkGen_Mesh");
 
     // Entite principale
     auto mainEntity = std::make_unique<NihilEngine::Entity>(
